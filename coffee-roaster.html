@@ -1,0 +1,1106 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-title" content="烘豆師Pro" />
+  <meta name="theme-color" content="#fdf6ee" />
+  <title>烘豆師 Pro</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.2/babel.min.js"></script>
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+    import { getFirestore, collection, doc, setDoc, getDocs, deleteDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+    const firebaseConfig = {
+      apiKey: "AIzaSyCGiJq7gbxtfxUzq7Wx39RA5zrlXw2GCYg",
+      authDomain: "coffee-roasting-records.firebaseapp.com",
+      projectId: "coffee-roasting-records",
+      storageBucket: "coffee-roasting-records.firebasestorage.app",
+      messagingSenderId: "704815979737",
+      appId: "1:704815979737:web:7d754e8c971b307674b2c8"
+    };
+    const app = initializeApp(firebaseConfig);
+    const db = getFirestore(app);
+    window._db = db;
+    window._fs = { collection, doc, setDoc, getDocs, deleteDoc, onSnapshot };
+    window._firebaseReady = true;
+    window.dispatchEvent(new Event("firebaseReady"));
+  </script>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { background: #fdf6ee; }
+    ::-webkit-scrollbar { width: 3px; height: 3px; }
+    ::-webkit-scrollbar-thumb { background: #92450f; border-radius: 2px; }
+    input, textarea, select { outline: none; }
+    input[type=range] { -webkit-appearance: none; height: 4px; border-radius: 2px; }
+    input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; width: 16px; height: 16px; border-radius: 50%; cursor: pointer; }
+    .fade { animation: fi .25s ease; }
+    @keyframes fi { from { opacity:0; transform:translateY(5px); } to { opacity:1; transform:none; } }
+    .pulse { animation: pd 1.4s infinite; }
+    @keyframes pd { 0%,100%{opacity:1} 50%{opacity:.35} }
+    button { transition: opacity .15s, transform .1s; cursor: pointer; }
+    button:active { transform: scale(.97); opacity: .8; }
+    td input { background: none; border: none; color: #3d1a00; font-family: inherit; font-size: 12px; width: 100%; text-align: center; padding: 2px; }
+    td input:focus { background: #fde8d0; border-radius: 4px; }
+    select option { background: #fff8f0; color: #3d1a00; }
+    input[type=number]::-webkit-inner-spin-button,
+    input[type=number]::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
+    input[type=number] { -moz-appearance: textfield; }
+    @import url('https://fonts.googleapis.com/css2?family=Noto+Serif+TC:wght@300;400;600;700&display=swap');
+  </style>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Serif+TC:wght@300;400;600;700&display=swap" rel="stylesheet">
+</head>
+<body>
+<div id="root"></div>
+<script type="text/babel">
+const { useState, useEffect, useRef } = React;
+
+const fmt = (s) => `${String(Math.floor(s/60)).padStart(2,"0")}:${String(s%60).padStart(2,"0")}`;
+const NUM_ROWS = 26; // 0~25 min max
+const emptyRow = () => ({ beanTemp:"", windTemp:"", airflow:"", flame:"" });
+
+const calcROR = (rows, idx) => {
+  if (idx < 1) return "";
+  const cur = parseFloat(rows[idx]?.beanTemp);
+  const prv = parseFloat(rows[idx-1]?.beanTemp);
+  if (isNaN(cur) || isNaN(prv)) return "";
+  return (cur - prv).toFixed(1);
+};
+
+const STAGE_COLORS = {
+  "回溫點":"#7c3aed","轉黃點":"#d97706",
+  "一爆開始":"#ea580c","一爆密集":"#c2410c",
+  "一爆結束":"#9a3412","二爆開始":"#dc2626",
+  "二爆密集":"#b91c1c","二爆結束":"#991b1b","出豆":"#7f1d1d",
+};
+
+const WEATHER_OPTIONS = ["晴天","多雲","陰天","雨天","潮濕","乾燥"];
+const ROAST_LEVELS = ["極淺焙","淺焙","淺中焙","中焙","中深焙","深焙","極深焙"];
+const PROCESS_OPTIONS = ["水洗","日曬","蜜處理","濕刨法","厭氧","其他"];
+
+const SAMPLE_BEANS = [
+  { id:1, name:"衣索比亞 耶加雪菲", origin:"衣索比亞", process:"水洗", customProcess:"", flavor:"茉莉花、藍莓、檸檬", supplier:"咖啡生豆行", stockG:2000, beanNotes:"2024新產季" },
+  { id:2, name:"巴西 黃波旁", origin:"巴西", process:"日曬", customProcess:"", flavor:"堅果、焦糖、黑巧克力", supplier:"精品豆商", stockG:5000, beanNotes:"" },
+  { id:3, name:"哥倫比亞 慧蘭", origin:"哥倫比亞", process:"蜜處理", customProcess:"", flavor:"紅糖、可可、蘋果", supplier:"", stockG:1000, beanNotes:"" },
+];
+
+const SAMPLE_HISTORY = [{
+  id:1, date:"2026-04-10", beanName:"衣索比亞 耶加雪菲", process:"水洗",
+  weather:"晴天", ambientTemp:"24", inWeight:"200", outWeight:"168",
+  moisture:"11.2", density:"0.68", loss:"16.0", beanSurface:"淺棕", beanPowder:"細", roastLevel:"淺焙",
+  notes:"花香明顯，酸質活潑，一爆密集約在11分",
+  events:[
+    {label:"回溫點",min:1,beanTemp:92,time:75},
+    {label:"轉黃點",min:5,beanTemp:163,time:310},
+    {label:"一爆開始",min:9,beanTemp:196,time:545},
+    {label:"一爆密集",min:10,beanTemp:202,time:618},
+    {label:"出豆",min:12,beanTemp:213,time:754},
+  ],
+  rows:[
+    {beanTemp:"25",windTemp:"200",airflow:"3",flame:"9"},
+    {beanTemp:"92",windTemp:"195",airflow:"3",flame:"8"},
+    {beanTemp:"110",windTemp:"190",airflow:"3",flame:"8"},
+    {beanTemp:"130",windTemp:"188",airflow:"4",flame:"7"},
+    {beanTemp:"148",windTemp:"185",airflow:"4",flame:"7"},
+    {beanTemp:"163",windTemp:"182",airflow:"4",flame:"6"},
+    {beanTemp:"174",windTemp:"180",airflow:"5",flame:"6"},
+    {beanTemp:"183",windTemp:"178",airflow:"5",flame:"6"},
+    {beanTemp:"190",windTemp:"180",airflow:"5",flame:"7"},
+    {beanTemp:"196",windTemp:"183",airflow:"6",flame:"7"},
+    {beanTemp:"202",windTemp:"185",airflow:"6",flame:"6"},
+    {beanTemp:"208",windTemp:"186",airflow:"7",flame:"6"},
+    {beanTemp:"213",windTemp:"187",airflow:"7",flame:"5"},
+    ...Array(8).fill(null).map(()=>emptyRow()),
+  ],
+}];
+
+const LS_HISTORY = "roastmaster_history";
+const LS_BEANS   = "roastmaster_beans";
+const lsGet = (key, fallback) => { try { const v=localStorage.getItem(key); return v?JSON.parse(v):fallback; } catch{return fallback;} };
+const lsSet = (key, val) => { try{localStorage.setItem(key,JSON.stringify(val));}catch{} };
+
+// Firebase helpers
+const fbSave = async (col, id, data) => {
+  try {
+    if(!window._db) return;
+    const {doc,setDoc} = window._fs;
+    await setDoc(doc(window._db, col, String(id)), data);
+  } catch(e){ console.warn("FB save error",e); }
+};
+const fbDelete = async (col, id) => {
+  try {
+    if(!window._db) return;
+    const {doc,deleteDoc} = window._fs;
+    await deleteDoc(doc(window._db, col, String(id)));
+  } catch(e){ console.warn("FB delete error",e); }
+};
+
+// ── Chart ────────────────────────────────────────────────────────────────────
+function RoastChart({ rows, events=[], height=220 }) {
+  const svgRef = useRef(null);
+  const [w, setW] = useState(500);
+  useEffect(() => {
+    const el = svgRef.current;
+    if (!el) return;
+    const ro = new ResizeObserver(() => setW(el.clientWidth||500));
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
+
+  const bPoints = rows.map((r,i)=>({x:i,y:parseFloat(r.beanTemp)})).filter(p=>!isNaN(p.y));
+  const wPoints = rows.map((r,i)=>({x:i,y:parseFloat(r.windTemp)})).filter(p=>!isNaN(p.y));
+  const rorPoints = rows.map((r,i)=>({x:i,ror:parseFloat(calcROR(rows,i))})).filter(p=>!isNaN(p.ror));
+
+  if (bPoints.length < 2) return (
+    <div style={{height,display:"flex",alignItems:"center",justifyContent:"center",color:"#7c4010",fontSize:12}}>
+      填入豆溫後曲線顯示於此
+    </div>
+  );
+
+  const pad={top:16,right:36,bottom:30,left:44};
+  const cw=w-pad.left-pad.right, ch=height-pad.top-pad.bottom;
+  const allTemps=[...bPoints,...wPoints].map(p=>p.y);
+  const maxT=Math.max(...allTemps,230), minT=Math.min(...allTemps,80)-10;
+  const maxIdx=NUM_ROWS-1, maxROR=30;
+  const tx=(x)=>(x/maxIdx)*cw;
+  const ty=(t)=>ch-((t-minT)/(maxT-minT))*ch;
+  const ry=(r)=>ch-((Math.max(0,Math.min(r,maxROR)))/maxROR)*ch;
+  const bPoly=bPoints.map(p=>`${tx(p.x)},${ty(p.y)}`).join(" ");
+  const wPoly=wPoints.map(p=>`${tx(p.x)},${ty(p.y)}`).join(" ");
+  const rPoly=rorPoints.map(p=>`${tx(p.x)},${ry(p.ror)}`).join(" ");
+  const tGrids=[100,130,150,175,200,220];
+  const xGrids=[0,3,6,9,12,15,18];
+
+  return (
+    <svg ref={svgRef} width="100%" height={height} style={{overflow:"visible",display:"block"}}>
+      <defs>
+        <linearGradient id="gB" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stopColor="#f97316" stopOpacity="0.18"/>
+          <stop offset="100%" stopColor="#f97316" stopOpacity="0"/>
+        </linearGradient>
+      </defs>
+      <g transform={`translate(${pad.left},${pad.top})`}>
+        {tGrids.map(t=>(
+          <g key={t}>
+            <line x1={0} y1={ty(t)} x2={cw} y2={ty(t)} stroke="#ddb890" strokeWidth={1} strokeDasharray="3 4"/>
+            <text x={-6} y={ty(t)+4} textAnchor="end" fontSize="9" fill="#7c4010">{t}°</text>
+          </g>
+        ))}
+        {xGrids.map(x=>(
+          <g key={x}>
+            <line x1={tx(x)} y1={0} x2={tx(x)} y2={ch} stroke="#e8c9a0" strokeWidth={1}/>
+            <text x={tx(x)} y={ch+16} textAnchor="middle" fontSize="9" fill="#7c4010">{x}′</text>
+          </g>
+        ))}
+        {bPoints.length>1 && <polygon points={`${tx(bPoints[0].x)},${ch} ${bPoly} ${tx(bPoints[bPoints.length-1].x)},${ch}`} fill="url(#gB)"/>}
+        {wPoints.length>1 && <polyline points={wPoly} fill="none" stroke="#0ea5e9" strokeWidth="1.8" strokeDasharray="5 3" strokeLinejoin="round"/>}
+        <polyline points={bPoly} fill="none" stroke="#ea580c" strokeWidth="2.5" strokeLinejoin="round" strokeLinecap="round"/>
+        {rorPoints.length>1 && <polyline points={rPoly} fill="none" stroke="#7c3aed" strokeWidth="1.5" strokeDasharray="4 2" strokeLinejoin="round"/>}
+        {[0,10,20].map(r=>(
+          <text key={r} x={cw+4} y={ry(r)+4} fontSize="8" fill="#7c3aed">{r}</text>
+        ))}
+        {events.map((ev,i)=>{
+          const bt=parseFloat(rows[ev.min]?.beanTemp||ev.beanTemp);
+          if(isNaN(bt)||ev.min>maxIdx) return null;
+          const color=STAGE_COLORS[ev.label]||"#5c2d0a";
+          return (
+            <g key={i}>
+              <line x1={tx(ev.min)} y1={ty(bt)-14} x2={tx(ev.min)} y2={ty(bt)} stroke={color} strokeWidth="1.5" strokeDasharray="2 2"/>
+              <circle cx={tx(ev.min)} cy={ty(bt)} r={4} fill={color}/>
+              <text x={tx(ev.min)} y={ty(bt)-17} textAnchor="middle" fontSize="8" fill={color}>{ev.label}</text>
+            </g>
+          );
+        })}
+      </g>
+    </svg>
+  );
+}
+
+// ── Main App ─────────────────────────────────────────────────────────────────
+function App() {
+  const [tab, setTab] = useState("roast");
+  const [beanName, setBeanName] = useState("");
+  const [process, setProcess] = useState("");
+  const [weather, setWeather] = useState("");
+  const [ambientTemp, setAmbientTemp] = useState("");
+  const [inWeight, setInWeight] = useState("");
+  const [outWeight, setOutWeight] = useState("");
+  const [moisture, setMoisture] = useState("");
+  const [density, setDensity] = useState("");
+  const [loss, setLoss] = useState("");
+  const [beanSurface, setBeanSurface] = useState("");
+  const [beanPowder, setBeanPowder] = useState("");
+  const [roastLevel, setRoastLevel] = useState("");
+  const [notes, setNotes] = useState("");
+  const [isRunning, setIsRunning] = useState(false);
+  const [elapsed, setElapsed] = useState(0);
+  const intervalRef = useRef(null);
+  const [rows, setRows] = useState(()=>Array(NUM_ROWS).fill(null).map(()=>emptyRow()));
+  const [events, setEvents] = useState([]);
+  const [beans, setBeans] = useState(()=>lsGet(LS_BEANS, SAMPLE_BEANS));
+  const [history, setHistory] = useState(()=>lsGet(LS_HISTORY, SAMPLE_HISTORY));
+  const [selectedHistory, setSelectedHistory] = useState(null);
+  const [historyView, setHistoryView] = useState("curve");
+  const [editingHistory, setEditingHistory] = useState(false);
+  const [newBean, setNewBean] = useState({name:"",origin:"",process:"",customProcess:"",flavor:"",supplier:"",stockG:"",beanNotes:""});
+  const [showNewBean, setShowNewBean] = useState(false);
+  const [editBean, setEditBean] = useState(null); // bean being edited
+  const [takeLog, setTakeLog] = useState({}); // {beanId: {amount:"", note:"", show:false}}
+  const [saveMsg, setSaveMsg] = useState("");
+  const [roastDone, setRoastDone] = useState(false); // after stopRoast, allow editing outWeight
+  const [visibleRows, setVisibleRows] = useState(11); // show 0~10 min initially
+  const [syncStatus, setSyncStatus] = useState("connecting"); // connecting | synced | offline
+
+  // localStorage backup
+  useEffect(()=>{lsSet(LS_HISTORY,history);},[history]);
+  useEffect(()=>{lsSet(LS_BEANS,beans);},[beans]);
+
+  // Firebase real-time sync
+  useEffect(()=>{
+    const setup = () => {
+      if(!window._db || !window._fs) return;
+      const {collection, onSnapshot} = window._fs;
+      // listen history
+      const unsubH = onSnapshot(collection(window._db,"history"), snap=>{
+        if(!snap.empty){
+          const docs = snap.docs.map(d=>d.data()).sort((a,b)=>b.id-a.id);
+          setHistory(docs);
+          lsSet(LS_HISTORY, docs);
+        }
+        setSyncStatus("synced");
+      }, ()=>setSyncStatus("offline"));
+      // listen beans
+      const unsubB = onSnapshot(collection(window._db,"beans"), snap=>{
+        if(!snap.empty){
+          const docs = snap.docs.map(d=>d.data());
+          setBeans(docs);
+          lsSet(LS_BEANS, docs);
+        }
+      }, ()=>{});
+      return ()=>{ unsubH(); unsubB(); };
+    };
+    if(window._firebaseReady || window._db) { setup(); }
+    else { window.addEventListener("firebaseReady", setup, {once:true}); }
+  },[]);
+
+  useEffect(()=>{
+    if(isRunning){ intervalRef.current=setInterval(()=>setElapsed(e=>e+1),1000); }
+    else{ clearInterval(intervalRef.current); }
+    return ()=>clearInterval(intervalRef.current);
+  },[isRunning]);
+
+  const currentMin=Math.floor(elapsed/60);
+  const currentSec=elapsed%60;
+  const prevMinRef=useRef(-1);
+
+  useEffect(()=>{
+    if(!isRunning) return;
+    const min=Math.floor(elapsed/60);
+    if(min!==prevMinRef.current && min<NUM_ROWS){
+      prevMinRef.current=min;
+      // auto-expand table: always show current + 1 extra row, max 26
+      setVisibleRows(v=>Math.min(NUM_ROWS, Math.max(v, min+2)));
+      setRows(prev=>{
+        const next=[...prev];
+        if(min>0 && next[min].beanTemp==="" && next[min-1].beanTemp!=="")
+          next[min]={...next[min-1]};
+        return next;
+      });
+    }
+  },[elapsed,isRunning]);
+
+  const updateRow=(idx,field,val)=>{
+    setRows(prev=>{const next=[...prev];next[idx]={...next[idx],[field]:val};return next;});
+  };
+
+  const addEvent=(label)=>{
+    const min=Math.floor(elapsed/60);
+    const bt=rows[min]?.beanTemp||"";
+    setEvents(ev=>{
+      const exists=ev.find(e=>e.label===label);
+      if(exists) return ev.map(e=>e.label===label?{...e,min,beanTemp:bt,time:elapsed}:e);
+      return [...ev,{label,min,beanTemp:bt,time:elapsed}];
+    });
+  };
+
+  const startRoast=()=>{
+    setElapsed(0);
+    setRows(Array(NUM_ROWS).fill(null).map(()=>emptyRow()));
+    setEvents([]);
+    prevMinRef.current=-1;
+    setRoastDone(false);
+    setVisibleRows(11);
+    setIsRunning(true);
+  };
+
+  const stopRoast=()=>{
+    setIsRunning(false);
+    setRoastDone(true);
+    setSaveMsg("⏱ 計時停止！請填入出豆重量後按「儲存紀錄」");
+  };
+
+  const saveRoast=()=>{
+    const lossVal=inWeight&&outWeight
+      ?(((parseFloat(inWeight)-parseFloat(outWeight))/parseFloat(inWeight))*100).toFixed(1)
+      :loss;
+    const entry={
+      id:Date.now(), date:new Date().toISOString().slice(0,10),
+      beanName,process,weather,ambientTemp,inWeight,outWeight,
+      moisture,density,loss:lossVal,beanSurface,beanPowder,roastLevel,
+      notes,events:[...events],rows:rows.map(r=>({...r})),
+      duration:fmt(elapsed),
+    };
+    setHistory(h=>[entry,...h]);
+    if(inWeight&&outWeight) setLoss(lossVal);
+    fbSave("history", entry.id, entry);
+    setRoastDone(false);
+    setSaveMsg("✓ 已儲存並同步雲端");
+    setTimeout(()=>setSaveMsg(""),3000);
+  };
+
+  useEffect(()=>{
+    if(inWeight&&outWeight){
+      const l=(((parseFloat(inWeight)-parseFloat(outWeight))/parseFloat(inWeight))*100).toFixed(1);
+      setLoss(isNaN(parseFloat(l))?"":l);
+    }
+  },[inWeight,outWeight]);
+
+  const IS = (w="100%")=>({
+    width:w, background:"#fff", border:"1px solid #d4a882", borderRadius:7,
+    color:"#3d1a00", fontSize:13, padding:"6px 9px", fontFamily:"inherit", outline:"none",
+  });
+  const LS={fontSize:9,color:"#92450f",letterSpacing:"0.12em",display:"block",marginBottom:3};
+  const CARD={background:"#fffcf7",border:"1px solid #d4a882",borderRadius:12,padding:"14px",marginBottom:11};
+  const SEC={fontSize:10,color:"#b84a00",letterSpacing:"0.15em",marginBottom:10};
+
+  return (
+    <div style={{fontFamily:"'Noto Serif TC',Georgia,serif",background:"#fdf6ee",minHeight:"100vh",color:"#4a2008"}}>
+
+      {/* ── Header ── */}
+      <div style={{background:"linear-gradient(180deg,#fde8d0,#fdf6ee)",borderBottom:"1px solid #e8c9a0",padding:"14px 18px 0",position:"sticky",top:0,zIndex:100}}>
+        <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:12}}>
+          <span style={{fontSize:24}}>☕</span>
+          <div>
+            <div style={{fontSize:17,fontWeight:700,color:"#3d1a00",letterSpacing:"0.06em"}}>烘豆師 Pro</div>
+            <div style={{fontSize:9,color:"#92450f",letterSpacing:"0.18em"}}>ROAST MASTER PRO</div>
+          </div>
+          <div style={{marginLeft:8,display:"flex",alignItems:"center",gap:4}}>
+            <div style={{width:7,height:7,borderRadius:"50%",background:syncStatus==="synced"?"#16a34a":syncStatus==="offline"?"#dc2626":"#f59e0b"}}/>
+            <span style={{fontSize:9,color:syncStatus==="synced"?"#16a34a":syncStatus==="offline"?"#dc2626":"#92450f"}}>
+              {syncStatus==="synced"?"雲端同步":syncStatus==="offline"?"離線模式":"連線中..."}
+            </span>
+          </div>
+          {isRunning && (
+            <div style={{marginLeft:"auto",display:"flex",alignItems:"center",gap:6}}>
+              <div className="pulse" style={{width:8,height:8,borderRadius:"50%",background:"#ef4444"}}/>
+              <span style={{fontSize:11,color:"#ef4444",fontWeight:600}}>烘焙中 {fmt(elapsed)}</span>
+            </div>
+          )}
+        </div>
+        <div style={{display:"flex"}}>
+          {[["roast","🔥 烘焙"],["history","📋 紀錄"],["beans","🌱 豆庫"]].map(([id,label])=>(
+            <button key={id} onClick={()=>setTab(id)}
+              style={{flex:1,padding:"9px 0",background:"none",border:"none",fontSize:13,
+                fontFamily:"inherit",fontWeight:tab===id?700:400,
+                color:tab===id?"#7c2d00":"#a0613a",
+                borderBottom:`2px solid ${tab===id?"#ea580c":"transparent"}`}}>
+              {label}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      <div style={{padding:"14px",maxWidth:600,margin:"0 auto"}}>
+
+        {/* ══════════ ROAST TAB ══════════ */}
+        {tab==="roast" && (
+          <div className="fade">
+
+            {/* 咖啡豆資訊 */}
+            <div style={CARD}>
+              <div style={SEC}>▸ 咖啡豆資訊</div>
+              <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:9,marginBottom:9}}>
+                <div>
+                  <label style={LS}>咖啡豆名稱</label>
+                  <input value={beanName} onChange={e=>setBeanName(e.target.value)}
+                    placeholder="e.g. 耶加雪菲" style={IS()} list="beanList"/>
+                  <datalist id="beanList">{beans.map(b=><option key={b.id} value={b.name}/>)}</datalist>
+                </div>
+                <div>
+                  <label style={LS}>處理法（可自由填寫）</label>
+                  <input value={process} onChange={e=>setProcess(e.target.value)}
+                    placeholder="e.g. 水洗、日曬、厭氧蜜處理..." style={IS()}/>
+                  <div style={{display:"flex",flexWrap:"wrap",gap:4,marginTop:5}}>
+                    {["水洗","日曬","蜜處理","厭氧","濕刨法","酒桶"].map(p=>(
+                      <span key={p} onClick={()=>setProcess(p)}
+                        style={{fontSize:10,background:process===p?"#ea580c":"#fdf6ee",color:process===p?"#fff":"#7c4010",border:"1px solid #d4a882",borderRadius:20,padding:"2px 8px",cursor:"pointer"}}>
+                        {p}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              </div>
+              <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:9}}>
+                <div>
+                  <label style={LS}>天氣</label>
+                  <select value={weather} onChange={e=>setWeather(e.target.value)} style={IS()}>
+                    <option value="">選擇</option>
+                    {WEATHER_OPTIONS.map(w=><option key={w}>{w}</option>)}
+                  </select>
+                </div>
+                <div>
+                  <label style={LS}>環境溫度 (°C)</label>
+                  <input value={ambientTemp} onChange={e=>setAmbientTemp(e.target.value)} placeholder="25" style={IS()} type="number"/>
+                </div>
+                <div>
+                  <label style={LS}>焙度</label>
+                  <select value={roastLevel} onChange={e=>setRoastLevel(e.target.value)} style={IS()}>
+                    <option value="">選擇</option>
+                    {ROAST_LEVELS.map(r=><option key={r}>{r}</option>)}
+                  </select>
+                </div>
+              </div>
+            </div>
+
+            {/* 重量 & 生豆資訊 */}
+            <div style={CARD}>
+              <div style={SEC}>▸ 重量 & 生豆資訊</div>
+              <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:9,marginBottom:9}}>
+                <div>
+                  <label style={LS}>入豆重量 (g)</label>
+                  <input value={inWeight} onChange={e=>setInWeight(e.target.value)} placeholder="200" style={IS()} type="number"/>
+                </div>
+                <div>
+                  <label style={LS}>出豆重量 (g)</label>
+                  <input value={outWeight} onChange={e=>setOutWeight(e.target.value)} placeholder="168" style={IS()} type="number"/>
+                </div>
+                <div>
+                  <label style={LS}>耗損率 (%)</label>
+                  <input value={loss} readOnly placeholder="自動計算"
+                    style={{...IS(),color:"#7c3aed",background:"#f5f0ff"}}/>
+                </div>
+              </div>
+              <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr 1fr",gap:9}}>
+                {[
+                  ["生豆含水率 (%)","moisture",moisture,setMoisture,"11.0","number","0.1"],
+                  ["生豆密度","density",density,setDensity,"0.68","number","0.01"],
+                  ["豆表","beanSurface",beanSurface,setBeanSurface,"均勻","text",""],
+                  ["豆粉","beanPowder",beanPowder,setBeanPowder,"細","text",""],
+                ].map(([label,key,val,setter,ph,type,step])=>(
+                  <div key={key}>
+                    <label style={LS}>{label}</label>
+                    <input value={val} onChange={e=>setter(e.target.value)}
+                      placeholder={ph} style={IS()} type={type} step={step||undefined}/>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* 計時器 */}
+            <div style={{...CARD, border:`1px solid ${isRunning?"#ea580c88":"#d4a882"}`}}>
+              <div style={{display:"flex",alignItems:"center",gap:12}}>
+                <div style={{flex:1}}>
+                  <div style={{fontSize:10,color:"#92450f",marginBottom:4}}>計時器</div>
+                  <div style={{fontSize:36,fontWeight:300,color:isRunning?"#ea580c":"#3d1a00",letterSpacing:"0.06em",lineHeight:1}}>{fmt(elapsed)}</div>
+                  <div style={{fontSize:11,color:"#92450f",marginTop:4}}>第 {currentMin} 分 {currentSec} 秒</div>
+                </div>
+                <div style={{display:"flex",flexDirection:"column",gap:8,alignItems:"flex-end"}}>
+                  {!isRunning ? (
+                    <button onClick={startRoast}
+                      style={{background:"linear-gradient(135deg,#92400e,#ea580c)",border:"none",borderRadius:10,padding:"11px 20px",color:"#fff",fontSize:14,fontFamily:"inherit",fontWeight:700,boxShadow:"0 3px 12px #ea580c44"}}>
+                      ▶ 開始烘焙
+                    </button>
+                  ) : (
+                    <button onClick={stopRoast}
+                      style={{background:"linear-gradient(135deg,#7f1d1d,#ef4444)",border:"none",borderRadius:10,padding:"11px 20px",color:"#fff",fontSize:14,fontFamily:"inherit",fontWeight:700,boxShadow:"0 3px 12px #ef444444"}}>
+                      ⬛ 結束儲存
+                    </button>
+                  )}
+                  {saveMsg && <div style={{fontSize:12,color:"#16a34a",fontWeight:600}}>{saveMsg}</div>}
+                </div>
+              </div>
+
+              {/* 出豆按鈕 */}
+              {isRunning && (
+                <div style={{marginTop:12,paddingTop:12,borderTop:"1px solid #ecd5b8"}}>
+                  <div style={{fontSize:10,color:"#92450f",marginBottom:7}}>出豆時按此，計時器自動停止</div>
+                  <button onClick={()=>{ addEvent("出豆"); stopRoast(); }}
+                    style={{width:"100%",background:"linear-gradient(135deg,#7f1d1d,#b91c1c)",border:"none",borderRadius:10,padding:"13px",color:"#fff",fontSize:15,fontFamily:"inherit",fontWeight:700,letterSpacing:"0.08em",boxShadow:"0 3px 12px #b91c1c44"}}>
+                    ☕ 出豆 · 停止計時
+                  </button>
+                </div>
+              )}
+
+              {/* 出豆後：填出豆重量再儲存 */}
+              {roastDone && (
+                <div style={{marginTop:12,paddingTop:12,borderTop:"1px solid #ecd5b8",background:"#fff8f0",borderRadius:8,padding:"12px"}} className="fade">
+                  <div style={{fontSize:12,color:"#b84a00",fontWeight:700,marginBottom:10}}>☕ 出豆完成！請填入出豆重量</div>
+                  <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:8,marginBottom:10}}>
+                    <div>
+                      <label style={{fontSize:10,color:"#92450f",display:"block",marginBottom:3}}>出豆重量 (g)</label>
+                      <input value={outWeight} onChange={e=>setOutWeight(e.target.value)}
+                        placeholder="e.g. 168" type="number" autoFocus
+                        style={{width:"100%",background:"#fff",border:"2px solid #ea580c",borderRadius:7,color:"#3d1a00",fontSize:14,padding:"8px 9px",fontFamily:"inherit",fontWeight:700}}/>
+                    </div>
+                    <div>
+                      <label style={{fontSize:10,color:"#92450f",display:"block",marginBottom:3}}>入豆重量 (g)</label>
+                      <input value={inWeight} onChange={e=>setInWeight(e.target.value)}
+                        placeholder="e.g. 200" type="number"
+                        style={{width:"100%",background:"#fff",border:"1px solid #d4a882",borderRadius:7,color:"#3d1a00",fontSize:13,padding:"8px 9px",fontFamily:"inherit"}}/>
+                    </div>
+                    <div>
+                      <label style={{fontSize:10,color:"#7c3aed",display:"block",marginBottom:3}}>耗損率 (%)</label>
+                      <div style={{background:"#f5f0ff",border:"1px solid #c4b5fd",borderRadius:7,padding:"8px 9px",fontSize:14,fontWeight:700,color:"#7c3aed"}}>
+                        {inWeight&&outWeight?(((parseFloat(inWeight)-parseFloat(outWeight))/parseFloat(inWeight))*100).toFixed(1)+"%":"—"}
+                      </div>
+                    </div>
+                  </div>
+                  <div style={{marginBottom:8}}>
+                    <label style={{fontSize:10,color:"#92450f",display:"block",marginBottom:3}}>總時長</label>
+                    <div style={{fontSize:18,fontWeight:700,color:"#ea580c"}}>{fmt(elapsed)}</div>
+                  </div>
+                  <button onClick={saveRoast}
+                    style={{width:"100%",background:"linear-gradient(135deg,#166534,#16a34a)",border:"none",borderRadius:10,padding:"13px",color:"#fff",fontSize:15,fontFamily:"inherit",fontWeight:700,boxShadow:"0 3px 12px #16a34a44"}}>
+                    💾 儲存完整烘焙紀錄
+                  </button>
+                </div>
+              )}
+            </div>
+
+            {/* 事件記錄 */}
+            <div style={CARD}>
+              <div style={SEC}>▸ 事件記錄</div>
+              <div style={{display:"flex",flexWrap:"wrap",gap:6,marginBottom:events.length?10:0}}>
+                {["回溫點","轉黃點","一爆開始","一爆密集","一爆結束","二爆開始","二爆密集","二爆結束"].map(label=>{
+                  const ev=events.find(e=>e.label===label);
+                  const color=STAGE_COLORS[label];
+                  return (
+                    <button key={label} onClick={()=>addEvent(label)}
+                      style={{background:ev?color+"22":"#fdf6ee",border:`1px solid ${ev?color:"#c9956a"}`,
+                        borderRadius:20,padding:"5px 11px",color:ev?color:"#6b3a1f",fontSize:11,fontFamily:"inherit",fontWeight:ev?700:400}}>
+                      {ev?`✓ ${label} ${fmt(ev.time)}`:label}
+                    </button>
+                  );
+                })}
+              </div>
+              {events.length>0 && (
+                <div style={{display:"flex",flexWrap:"wrap",gap:5,marginTop:6}}>
+                  {events.map((ev,i)=>(
+                    <span key={i} style={{fontSize:10,color:STAGE_COLORS[ev.label]||"#5c2d0a",
+                      background:(STAGE_COLORS[ev.label]||"#5c2d0a")+"18",
+                      border:`1px solid ${STAGE_COLORS[ev.label]||"#c9956a"}44`,
+                      borderRadius:12,padding:"2px 8px"}}>
+                      {ev.label} {fmt(ev.time)} {ev.beanTemp?`· ${ev.beanTemp}°`:""}
+                    </span>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* 記錄表 */}
+            <div style={CARD}>
+              <div style={SEC}>▸ 烘焙記錄表</div>
+              <div style={{display:"flex",gap:14,fontSize:10,marginBottom:8}}>
+                <span style={{color:"#ea580c"}}>── 豆溫</span>
+                <span style={{color:"#0ea5e9"}}>╌╌ 風溫</span>
+                <span style={{color:"#7c3aed"}}>╌╌ ROR</span>
+              </div>
+              <div style={{overflowX:"auto"}}>
+                <table style={{width:"100%",borderCollapse:"collapse",fontSize:12}}>
+                  <thead>
+                    <tr style={{borderBottom:"2px solid #d4a882"}}>
+                      {["時間","豆溫°C","ROR","火力","風門","風溫°C","備註"].map(h=>(
+                        <th key={h} style={{padding:"6px 5px",color:"#7c2d00",fontWeight:600,whiteSpace:"nowrap",textAlign:"center",fontSize:11}}>{h}</th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {rows.slice(0,visibleRows).map((row,i)=>{
+                      const isCurrent=isRunning&&Math.floor(elapsed/60)===i;
+                      const ror=calcROR(rows,i);
+                      const evHere=events.filter(e=>e.min===i);
+                      return (
+                        <tr key={i} style={{
+                          background:isCurrent?"#fde8d0":i%2===0?"#fffcf7":"#fff5eb",
+                          borderBottom:"1px solid #ecd5b8",
+                          outline:isCurrent?"2px solid #ea580c44":"none",
+                        }}>
+                          <td style={{padding:"4px 5px",textAlign:"center",color:isCurrent?"#ea580c":"#7c4010",fontWeight:isCurrent?700:500,whiteSpace:"nowrap",fontSize:11}}>
+                            {fmt(i*60)}
+                            {isCurrent&&<span className="pulse" style={{display:"inline-block",marginLeft:3,width:5,height:5,borderRadius:"50%",background:"#ea580c",verticalAlign:"middle"}}/>}
+                          </td>
+                          <td style={{padding:"2px 2px"}}>
+                            <input value={row.beanTemp} onChange={e=>updateRow(i,"beanTemp",e.target.value)}
+                              placeholder="—" style={{width:"58px",background:"none",border:"none",color:"#c2410c",fontWeight:700,textAlign:"center",fontSize:13,padding:"3px 2px",fontFamily:"inherit"}} type="number"/>
+                          </td>
+                          <td style={{padding:"4px 5px",textAlign:"center",fontWeight:700,fontSize:12,
+                            color:ror===""?"#c9956a":parseFloat(ror)>0?"#7c3aed":"#dc2626"}}>
+                            {ror!==""?ror:"—"}
+                          </td>
+                          <td style={{padding:"2px 2px"}}>
+                            <input value={row.flame} onChange={e=>updateRow(i,"flame",e.target.value)}
+                              placeholder="—" style={{width:"40px",background:"none",border:"none",color:"#ea580c",fontWeight:600,textAlign:"center",fontSize:12,padding:"3px 2px",fontFamily:"inherit"}} type="number" min="1" max="10"/>
+                          </td>
+                          <td style={{padding:"2px 2px"}}>
+                            <input value={row.airflow} onChange={e=>updateRow(i,"airflow",e.target.value)}
+                              placeholder="—" style={{width:"40px",background:"none",border:"none",color:"#0284c7",fontWeight:600,textAlign:"center",fontSize:12,padding:"3px 2px",fontFamily:"inherit"}} type="number" min="1" max="10"/>
+                          </td>
+                          <td style={{padding:"2px 2px"}}>
+                            <input value={row.windTemp} onChange={e=>updateRow(i,"windTemp",e.target.value)}
+                              placeholder="—" style={{width:"55px",background:"none",border:"none",color:"#0ea5e9",fontWeight:600,textAlign:"center",fontSize:12,padding:"3px 2px",fontFamily:"inherit"}} type="number"/>
+                          </td>
+                          <td style={{padding:"3px 4px",fontSize:9}}>
+                            {evHere.map(e=>(
+                              <span key={e.label} style={{display:"inline-block",background:STAGE_COLORS[e.label]+"22",color:STAGE_COLORS[e.label],borderRadius:8,padding:"1px 4px",marginRight:2,fontSize:8,whiteSpace:"nowrap",fontWeight:600}}>
+                                {e.label}
+                              </span>
+                            ))}
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+              {/* 展開更多列 */}
+              {visibleRows < NUM_ROWS && (
+                <button onClick={()=>setVisibleRows(v=>Math.min(NUM_ROWS,v+5))}
+                  style={{width:"100%",marginTop:8,background:"none",border:"1px dashed #d4a882",borderRadius:8,padding:"7px",color:"#92450f",fontSize:12,fontFamily:"inherit"}}>
+                  ＋ 展開更多（目前顯示至 {fmt((visibleRows-1)*60)}，點擊增加5分鐘）
+                </button>
+              )}
+            </div>
+
+            {/* 備註 */}
+            <div style={CARD}>
+              <label style={{...LS,color:"#b84a00",letterSpacing:"0.15em",fontSize:10}}>▸ 備註</label>
+              <textarea value={notes} onChange={e=>setNotes(e.target.value)} rows={3}
+                placeholder="香氣、觀察、調整心得..."
+                style={{background:"none",border:"none",color:"#3d1a00",fontSize:13,fontFamily:"inherit",width:"100%",resize:"none",lineHeight:1.7,marginTop:6}}/>
+            </div>
+          </div>
+        )}
+
+        {/* ══════════ HISTORY TAB ══════════ */}
+        {tab==="history" && (
+          <div className="fade">
+            {selectedHistory ? (
+              <div>
+                <button onClick={()=>{setSelectedHistory(null);setEditingHistory(false);}}
+                  style={{background:"none",border:"none",color:"#ea580c",fontFamily:"inherit",fontSize:13,marginBottom:14,fontWeight:600}}>
+                  ← 返回列表
+                </button>
+                <div style={{background:"#fffcf7",border:"1px solid #d4a882",borderRadius:12,padding:"16px",marginBottom:12}}>
+                  {/* 標題 + 編輯按鈕 */}
+                  <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:2}}>
+                    <div style={{fontSize:18,fontWeight:700,color:"#3d1a00"}}>{selectedHistory.beanName||"未命名"}</div>
+                    <button onClick={()=>setEditingHistory(!editingHistory)}
+                      style={{background:editingHistory?"#fde8d0":"none",border:"1px solid #d4a882",borderRadius:8,padding:"4px 11px",color:"#92450f",fontSize:12,fontFamily:"inherit",fontWeight:600,flexShrink:0,marginLeft:8}}>
+                      {editingHistory?"✕ 取消":"✏️ 編輯"}
+                    </button>
+                  </div>
+                  <div style={{fontSize:11,color:"#92450f",marginBottom:14}}>
+                    {selectedHistory.date} · {selectedHistory.process} · {selectedHistory.weather} {selectedHistory.ambientTemp?selectedHistory.ambientTemp+"°C":""}
+                    {selectedHistory.duration && <span style={{marginLeft:6,color:"#ea580c",fontWeight:600}}>⏱ {selectedHistory.duration}</span>}
+                  </div>
+
+                  {/* 編輯表單 */}
+                  {editingHistory && (
+                    <div style={{background:"#fff8f0",borderRadius:10,padding:"12px",marginBottom:14,border:"1px solid #ea580c44"}} className="fade">
+                      <div style={{fontSize:11,color:"#b84a00",fontWeight:700,marginBottom:10}}>✏️ 編輯此筆紀錄</div>
+                      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:8,marginBottom:8}}>
+                        {[["出豆重量(g)","outWeight"],["入豆重量(g)","inWeight"],["焙度","roastLevel"]].map(([label,key])=>(
+                          <div key={key}>
+                            <label style={{fontSize:10,color:"#92450f",display:"block",marginBottom:3}}>{label}</label>
+                            <input value={selectedHistory[key]||""} onChange={e=>{
+                              const updated={...selectedHistory,[key]:e.target.value};
+                              if(updated.inWeight&&updated.outWeight){
+                                updated.loss=(((parseFloat(updated.inWeight)-parseFloat(updated.outWeight))/parseFloat(updated.inWeight))*100).toFixed(1);
+                              }
+                              setSelectedHistory(updated);
+                            }} style={{width:"100%",background:"#fff",border:"1px solid #d4a882",borderRadius:6,color:"#3d1a00",fontSize:13,padding:"6px 8px",fontFamily:"inherit"}}/>
+                          </div>
+                        ))}
+                      </div>
+                      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8,marginBottom:8}}>
+                        {[["咖啡豆名稱","beanName"],["處理法","process"]].map(([label,key])=>(
+                          <div key={key}>
+                            <label style={{fontSize:10,color:"#92450f",display:"block",marginBottom:3}}>{label}</label>
+                            <input value={selectedHistory[key]||""} onChange={e=>setSelectedHistory({...selectedHistory,[key]:e.target.value})}
+                              style={{width:"100%",background:"#fff",border:"1px solid #d4a882",borderRadius:6,color:"#3d1a00",fontSize:13,padding:"6px 8px",fontFamily:"inherit"}}/>
+                          </div>
+                        ))}
+                      </div>
+                      <div style={{marginBottom:10}}>
+                        <label style={{fontSize:10,color:"#92450f",display:"block",marginBottom:3}}>備註</label>
+                        <textarea value={selectedHistory.notes||""} onChange={e=>setSelectedHistory({...selectedHistory,notes:e.target.value})}
+                          rows={2} style={{width:"100%",background:"#fff",border:"1px solid #d4a882",borderRadius:6,color:"#3d1a00",fontSize:13,padding:"6px 8px",fontFamily:"inherit",resize:"none"}}/>
+                      </div>
+                      <button onClick={()=>{
+                        setHistory(prev=>prev.map(h=>h.id===selectedHistory.id?selectedHistory:h));
+                        fbSave("history",selectedHistory.id,selectedHistory);
+                        setEditingHistory(false);
+                        setSaveMsg("✓ 紀錄已更新並同步雲端");
+                        setTimeout(()=>setSaveMsg(""),3000);
+                      }} style={{width:"100%",background:"linear-gradient(135deg,#166534,#16a34a)",border:"none",borderRadius:8,padding:"10px",color:"#fff",fontSize:13,fontFamily:"inherit",fontWeight:700}}>
+                        💾 儲存修改
+                      </button>
+                      {saveMsg&&<div style={{marginTop:8,fontSize:12,color:"#16a34a",fontWeight:600,textAlign:"center"}}>{saveMsg}</div>}
+                    </div>
+                  )}
+
+                  {/* 資訊卡片 */}
+                  <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:7,marginBottom:14}}>
+                    {[["入豆",(selectedHistory.inWeight||"—")+"g"],["出豆",(selectedHistory.outWeight||"—")+"g"],["耗損",(selectedHistory.loss||"—")+"%"],["焙度",selectedHistory.roastLevel||"—"]].map(([k,v])=>(
+                      <div key={k} style={{background:"#fdf6ee",borderRadius:8,padding:"9px 6px",textAlign:"center",border:"1px solid #e8c9a0"}}>
+                        <div style={{fontSize:9,color:"#92450f",marginBottom:3}}>{k}</div>
+                        <div style={{fontSize:13,fontWeight:700,color:"#ea580c"}}>{v}</div>
+                      </div>
+                    ))}
+                  </div>
+                  <div style={{display:"flex",background:"#fdf6ee",borderRadius:8,padding:3,marginBottom:12}}>
+                    {[["curve","烘焙曲線"],["table","數據表"]].map(([id,label])=>(
+                      <button key={id} onClick={()=>setHistoryView(id)}
+                        style={{flex:1,padding:"6px 0",border:"none",borderRadius:6,fontFamily:"inherit",fontSize:12,
+                          fontWeight:historyView===id?700:400,background:historyView===id?"#ea580c":"transparent",
+                          color:historyView===id?"#fff":"#92450f"}}>
+                        {label}
+                      </button>
+                    ))}
+                  </div>
+                  {historyView==="curve" ? (
+                    <>
+                      <div style={{display:"flex",gap:14,fontSize:10,marginBottom:8}}>
+                        <span style={{color:"#ea580c"}}>── 豆溫</span>
+                        <span style={{color:"#0ea5e9"}}>╌╌ 風溫</span>
+                        <span style={{color:"#7c3aed"}}>╌╌ ROR</span>
+                      </div>
+                      <RoastChart rows={selectedHistory.rows} events={selectedHistory.events||[]} height={200}/>
+                    </>
+                  ) : (
+                    <div style={{overflowX:"auto"}}>
+                      <table style={{width:"100%",borderCollapse:"collapse",fontSize:12}}>
+                        <thead>
+                          <tr style={{borderBottom:"2px solid #d4a882"}}>
+                            {["時間","豆溫°C","ROR","火力","風門","風溫°C"].map(h=>(
+                              <th key={h} style={{padding:"5px 7px",color:"#7c2d00",fontWeight:600,textAlign:"center",fontSize:11}}>{h}</th>
+                            ))}
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {selectedHistory.rows.map((row,i)=>{
+                            const ror=calcROR(selectedHistory.rows,i);
+                            if(!row.beanTemp) return null;
+                            return (
+                              <tr key={i} style={{borderBottom:"1px solid #ecd5b8",background:i%2===0?"#fffcf7":"#fff5eb"}}>
+                                <td style={{padding:"5px 7px",color:"#7c4010",textAlign:"center",fontWeight:500}}>{fmt(i*60)}</td>
+                                <td style={{padding:"5px 7px",color:"#c2410c",fontWeight:700,textAlign:"center"}}>{row.beanTemp}</td>
+                                <td style={{padding:"5px 7px",color:ror!==""?(parseFloat(ror)>=0?"#7c3aed":"#dc2626"):"#c9956a",fontWeight:600,textAlign:"center"}}>{ror!==""?ror:"—"}</td>
+                                <td style={{padding:"5px 7px",color:"#ea580c",textAlign:"center"}}>{row.flame||"—"}</td>
+                                <td style={{padding:"5px 7px",color:"#0284c7",textAlign:"center"}}>{row.airflow||"—"}</td>
+                                <td style={{padding:"5px 7px",color:"#0ea5e9",textAlign:"center"}}>{row.windTemp||"—"}</td>
+                              </tr>
+                            );
+                          })}
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
+                  {selectedHistory.events?.length>0 && (
+                    <div style={{marginTop:14}}>
+                      <div style={{fontSize:10,color:"#92450f",marginBottom:7}}>事件記錄</div>
+                      <div style={{display:"flex",flexWrap:"wrap",gap:6}}>
+                        {selectedHistory.events.map((ev,i)=>(
+                          <span key={i} style={{fontSize:11,color:STAGE_COLORS[ev.label]||"#5c2d0a",
+                            background:(STAGE_COLORS[ev.label]||"#5c2d0a")+"18",
+                            border:`1px solid ${STAGE_COLORS[ev.label]||"#c9956a"}44`,
+                            borderRadius:12,padding:"3px 10px",fontWeight:600}}>
+                            {ev.label} {fmt(ev.time||ev.min*60)} {ev.beanTemp?`· ${ev.beanTemp}°C`:""}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                  {selectedHistory.notes && !editingHistory && (
+                    <div style={{marginTop:12}}>
+                      <div style={{fontSize:10,color:"#92450f",marginBottom:5}}>備註</div>
+                      <div style={{fontSize:13,color:"#3d1a00",lineHeight:1.75}}>{selectedHistory.notes}</div>
+                    </div>
+                  )}
+                </div>
+              </div>
+            ) : (
+              <div>
+                <div style={{fontSize:12,color:"#92450f",marginBottom:12}}>共 {history.length} 筆烘焙紀錄</div>
+                {history.map(h=>(
+                  <div key={h.id} onClick={()=>{setSelectedHistory(h);setHistoryView("curve");}}
+                    style={{background:"#fffcf7",border:"1px solid #d4a882",borderRadius:12,padding:"13px 14px",marginBottom:8,cursor:"pointer",display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+                    <div style={{flex:1}}>
+                      <div style={{fontSize:14,fontWeight:700,color:"#3d1a00",marginBottom:3}}>{h.beanName||"未命名"}</div>
+                      <div style={{fontSize:11,color:"#92450f"}}>{h.date} · {h.inWeight}g→{h.outWeight}g · {h.roastLevel}</div>
+                      {h.notes&&<div style={{fontSize:11,color:"#a16207",marginTop:3}}>{h.notes.slice(0,36)}{h.notes.length>36?"…":""}</div>}
+                    </div>
+                    <div style={{display:"flex",alignItems:"center",gap:8}}>
+                      <button onClick={e=>{e.stopPropagation();if(window.confirm(`確定刪除「${h.beanName||"未命名"}」？`)){setHistory(prev=>prev.filter(r=>r.id!==h.id));fbDelete("history",h.id);}}}
+                        style={{background:"none",border:"1px solid #d4a882",borderRadius:8,padding:"4px 9px",color:"#92450f",fontSize:11,fontFamily:"inherit"}}>
+                        刪除
+                      </button>
+                      <span style={{color:"#c9956a",fontSize:22}}>›</span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* ══════════ BEANS TAB ══════════ */}
+        {tab==="beans" && (
+          <div className="fade">
+            <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:14}}>
+              <div style={{fontSize:12,color:"#92450f"}}>{beans.length} 款生豆</div>
+              <button onClick={()=>setShowNewBean(!showNewBean)}
+                style={{background:"#fffcf7",border:"1px solid #ea580c",borderRadius:20,padding:"6px 14px",color:"#7c2d00",fontSize:12,fontFamily:"inherit",fontWeight:600}}>
+                {showNewBean ? "✕ 取消" : "＋ 新增豆子"}
+              </button>
+            </div>
+
+            {/* 新增表單 */}
+            {showNewBean && (
+              <div style={{background:"#fffcf7",border:"1px solid #ea580c88",borderRadius:12,padding:"16px",marginBottom:16}} className="fade">
+                <div style={{fontSize:13,color:"#ea580c",marginBottom:12,fontWeight:700}}>新增生豆資料</div>
+
+                {/* 豆子名稱 */}
+                <div style={{marginBottom:9}}>
+                  <label style={{fontSize:10,color:"#92450f",display:"block",marginBottom:3}}>豆子名稱（國家 + 豆名）*</label>
+                  <input value={newBean.name} onChange={e=>setNewBean(b=>({...b,name:e.target.value}))}
+                    placeholder="e.g. 衣索比亞 耶加雪菲 / 巴西 黃波旁"
+                    style={{width:"100%",background:"#fff",border:"1px solid #d4a882",borderRadius:7,color:"#3d1a00",fontSize:13,padding:"7px 10px",fontFamily:"inherit"}}/>
+                </div>
+
+                {/* 產地 */}
+                <div style={{marginBottom:9}}>
+                  <label style={{fontSize:10,color:"#92450f",display:"block",marginBottom:3}}>產地 / 國家</label>
+                  <input value={newBean.origin} onChange={e=>setNewBean(b=>({...b,origin:e.target.value}))}
+                    placeholder="e.g. 衣索比亞、哥倫比亞、巴西"
+                    style={{width:"100%",background:"#fff",border:"1px solid #d4a882",borderRadius:7,color:"#3d1a00",fontSize:13,padding:"7px 10px",fontFamily:"inherit"}}/>
+                </div>
+
+                {/* 處理法 */}
+                <div style={{marginBottom:9}}>
+                  <label style={{fontSize:10,color:"#92450f",display:"block",marginBottom:3}}>處理法</label>
+                  <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:7}}>
+                    <select value={newBean.process} onChange={e=>setNewBean(b=>({...b,process:e.target.value}))}
+                      style={{width:"100%",background:"#fff",border:"1px solid #d4a882",borderRadius:7,color:"#3d1a00",fontSize:13,padding:"7px 10px",fontFamily:"inherit"}}>
+                      <option value="">選擇處理法</option>
+                      {["水洗","日曬","蜜處理","濕刨法","厭氧水洗","厭氧日曬","雙重厭氧","酒桶處理","其他"].map(p=><option key={p}>{p}</option>)}
+                    </select>
+                    <input value={newBean.customProcess} onChange={e=>setNewBean(b=>({...b,customProcess:e.target.value}))}
+                      placeholder="自填處理法（選填）"
+                      style={{width:"100%",background:"#fff",border:"1px solid #d4a882",borderRadius:7,color:"#3d1a00",fontSize:13,padding:"7px 10px",fontFamily:"inherit"}}/>
+                  </div>
+                </div>
+
+                {/* 風味 */}
+                <div style={{marginBottom:9}}>
+                  <label style={{fontSize:10,color:"#92450f",display:"block",marginBottom:3}}>風味描述</label>
+                  <input value={newBean.flavor} onChange={e=>setNewBean(b=>({...b,flavor:e.target.value}))}
+                    placeholder="e.g. 茉莉花、藍莓、檸檬酸"
+                    style={{width:"100%",background:"#fff",border:"1px solid #d4a882",borderRadius:7,color:"#3d1a00",fontSize:13,padding:"7px 10px",fontFamily:"inherit"}}/>
+                </div>
+
+                {/* 生豆商 + 庫存 */}
+                <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:7,marginBottom:9}}>
+                  <div>
+                    <label style={{fontSize:10,color:"#92450f",display:"block",marginBottom:3}}>生豆商</label>
+                    <input value={newBean.supplier} onChange={e=>setNewBean(b=>({...b,supplier:e.target.value}))}
+                      placeholder="e.g. 精品豆商、咖啡行"
+                      style={{width:"100%",background:"#fff",border:"1px solid #d4a882",borderRadius:7,color:"#3d1a00",fontSize:13,padding:"7px 10px",fontFamily:"inherit"}}/>
+                  </div>
+                  <div>
+                    <label style={{fontSize:10,color:"#92450f",display:"block",marginBottom:3}}>庫存（克 g）</label>
+                    <input value={newBean.stockG} onChange={e=>setNewBean(b=>({...b,stockG:e.target.value}))}
+                      placeholder="e.g. 5000、600"
+                      type="number"
+                      style={{width:"100%",background:"#fff",border:"1px solid #d4a882",borderRadius:7,color:"#3d1a00",fontSize:13,padding:"7px 10px",fontFamily:"inherit"}}/>
+                  </div>
+                </div>
+
+                {/* 備註 */}
+                <div style={{marginBottom:12}}>
+                  <label style={{fontSize:10,color:"#92450f",display:"block",marginBottom:3}}>備註</label>
+                  <textarea value={newBean.beanNotes} onChange={e=>setNewBean(b=>({...b,beanNotes:e.target.value}))}
+                    placeholder="產季、批次、購買日期等備注..."
+                    rows={2}
+                    style={{width:"100%",background:"#fff",border:"1px solid #d4a882",borderRadius:7,color:"#3d1a00",fontSize:13,padding:"7px 10px",fontFamily:"inherit",resize:"none",lineHeight:1.6}}/>
+                </div>
+
+                <button onClick={()=>{
+                  if(!newBean.name) return;
+                  const nb={...newBean,id:Date.now()};setBeans(b=>[...b,nb]);fbSave("beans",nb.id,nb);
+                  setNewBean({name:"",origin:"",process:"",customProcess:"",flavor:"",supplier:"",stockG:"",beanNotes:""});
+                  setShowNewBean(false);
+                }} style={{width:"100%",background:"linear-gradient(135deg,#92400e,#ea580c)",border:"none",borderRadius:8,padding:"11px",color:"#fff",fontSize:14,fontFamily:"inherit",fontWeight:700}}>
+                  儲存豆子資料
+                </button>
+              </div>
+            )}
+
+            {/* 豆子列表 */}
+            {beans.length===0 && (
+              <div style={{textAlign:"center",color:"#c9956a",fontSize:13,padding:"40px 0"}}>尚無生豆資料，點上方「新增豆子」開始建立豆庫</div>
+            )}
+            {beans.map(b=>{
+              const tl = takeLog[b.id] || {amount:"",note:"",show:false};
+              const isEditing = editBean && editBean.id===b.id;
+              return (
+              <div key={b.id} style={{background:"#fffcf7",border:"1px solid #d4a882",borderRadius:12,padding:"14px",marginBottom:10}}>
+
+                {/* 標題列 */}
+                <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:8}}>
+                  <div style={{fontSize:15,fontWeight:700,color:"#3d1a00",flex:1,lineHeight:1.4}}>{b.name}</div>
+                  <div style={{display:"flex",gap:6,flexShrink:0,marginLeft:8}}>
+                    <button onClick={()=>setEditBean(isEditing?null:{...b})}
+                      style={{background:isEditing?"#fde8d0":"none",border:"1px solid #d4a882",borderRadius:8,padding:"3px 9px",color:"#92450f",fontSize:11,fontFamily:"inherit"}}>
+                      {isEditing?"✕ 取消":"編輯"}
+                    </button>
+                    <button onClick={()=>{if(window.confirm(`確定刪除「${b.name}」？`)){setBeans(prev=>prev.filter(x=>x.id!==b.id));fbDelete("beans",b.id);}}}
+                      style={{background:"none",border:"1px solid #d4a882",borderRadius:8,padding:"3px 9px",color:"#92450f",fontSize:11,fontFamily:"inherit"}}>
+                      刪除
+                    </button>
+                  </div>
+                </div>
+
+                {/* 編輯表單 */}
+                {isEditing && (
+                  <div style={{background:"#fdf6ee",borderRadius:8,padding:"12px",marginBottom:10}} className="fade">
+                    {[["名稱","name"],["產地","origin"],["風味","flavor"],["生豆商","supplier"]].map(([label,key])=>(
+                      <div key={key} style={{marginBottom:7}}>
+                        <label style={{fontSize:10,color:"#92450f",display:"block",marginBottom:2}}>{label}</label>
+                        <input value={editBean[key]||""} onChange={e=>setEditBean(eb=>({...eb,[key]:e.target.value}))}
+                          style={{width:"100%",background:"#fff",border:"1px solid #d4a882",borderRadius:6,color:"#3d1a00",fontSize:13,padding:"6px 9px",fontFamily:"inherit"}}/>
+                      </div>
+                    ))}
+                    <div style={{marginBottom:7}}>
+                      <label style={{fontSize:10,color:"#92450f",display:"block",marginBottom:2}}>庫存（克 g）</label>
+                      <input value={editBean.stockG||""} onChange={e=>setEditBean(eb=>({...eb,stockG:parseFloat(e.target.value)||0}))}
+                        type="number"
+                        style={{width:"100%",background:"#fff",border:"1px solid #d4a882",borderRadius:6,color:"#3d1a00",fontSize:13,padding:"6px 9px",fontFamily:"inherit"}}/>
+                    </div>
+                    <div style={{marginBottom:10}}>
+                      <label style={{fontSize:10,color:"#92450f",display:"block",marginBottom:2}}>備註</label>
+                      <textarea value={editBean.beanNotes||""} onChange={e=>setEditBean(eb=>({...eb,beanNotes:e.target.value}))}
+                        rows={2} style={{width:"100%",background:"#fff",border:"1px solid #d4a882",borderRadius:6,color:"#3d1a00",fontSize:13,padding:"6px 9px",fontFamily:"inherit",resize:"none"}}/>
+                    </div>
+                    <button onClick={()=>{
+                      const updated=beans.map(x=>x.id===editBean.id?editBean:x);
+                      setBeans(updated);
+                      fbSave("beans",editBean.id,editBean);
+                      setEditBean(null);
+                    }} style={{width:"100%",background:"linear-gradient(135deg,#92400e,#ea580c)",border:"none",borderRadius:8,padding:"9px",color:"#fff",fontSize:13,fontFamily:"inherit",fontWeight:700}}>
+                      儲存修改
+                    </button>
+                  </div>
+                )}
+
+                {/* 標籤列 */}
+                <div style={{display:"flex",flexWrap:"wrap",gap:5,marginBottom:8}}>
+                  {b.origin && <span style={{background:"#fef3e2",border:"1px solid #f0c070",borderRadius:20,padding:"2px 10px",fontSize:11,color:"#92400e"}}>📍 {b.origin}</span>}
+                  {(b.customProcess||b.process) && <span style={{background:"#f0fdf4",border:"1px solid #86efac",borderRadius:20,padding:"2px 10px",fontSize:11,color:"#166534"}}>⚙ {b.customProcess||b.process}</span>}
+                  {(b.stockG!==undefined ? b.stockG : b.stock) && (
+                    <span style={{background: parseFloat(b.stockG)<=500?"#fef2f2":"#eff6ff",
+                      border:`1px solid ${parseFloat(b.stockG)<=500?"#fca5a5":"#93c5fd"}`,
+                      borderRadius:20,padding:"2px 10px",fontSize:11,
+                      color:parseFloat(b.stockG)<=500?"#dc2626":"#1d4ed8",fontWeight:600}}>
+                      📦 庫存：{b.stockG!==undefined?b.stockG+"g":b.stock}
+                      {parseFloat(b.stockG)<=500 && b.stockG!==undefined?" ⚠️低庫存":""}
+                    </span>
+                  )}
+                </div>
+
+                {b.flavor && <div style={{fontSize:12,color:"#7c4010",marginBottom:6}}>✦ {b.flavor}</div>}
+                {b.supplier && <div style={{fontSize:11,color:"#92450f",marginBottom:4}}>🏪 生豆商：{b.supplier}</div>}
+                {b.beanNotes && <div style={{fontSize:11,color:"#a16207",background:"#fdf6ee",borderRadius:6,padding:"5px 8px",marginBottom:8}}>📝 {b.beanNotes}</div>}
+
+                {/* 領取記錄歷史 */}
+                {b.takeHistory && b.takeHistory.length>0 && (
+                  <div style={{marginBottom:8}}>
+                    <div style={{fontSize:10,color:"#92450f",marginBottom:5}}>📋 領取記錄</div>
+                    <div style={{background:"#fdf6ee",borderRadius:8,padding:"6px 10px"}}>
+                      {b.takeHistory.map((t,i)=>(
+                        <div key={i} style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"4px 0",borderBottom:i<b.takeHistory.length-1?"1px solid #ecd5b8":"none"}}>
+                          <div>
+                            <span style={{fontSize:12,color:"#3d1a00",fontWeight:600}}>{t.amount}</span>
+                            {t.note && <span style={{fontSize:11,color:"#a16207",marginLeft:6}}>{t.note}</span>}
+                          </div>
+                          <div style={{display:"flex",alignItems:"center",gap:8}}>
+                            <span style={{fontSize:10,color:"#c9956a"}}>{t.date}</span>
+                            <span style={{fontSize:11,color:"#0284c7"}}>餘 {t.remaining}</span>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* 領取按鈕 */}
+                <button onClick={()=>setTakeLog(tl=>({...tl,[b.id]:{...tl[b.id],show:!tl[b.id]?.show}}))}
+                  style={{width:"100%",background:tl.show?"#fde8d0":"#fdf6ee",border:"1px solid #ea580c88",borderRadius:8,padding:"7px",color:"#7c2d00",fontSize:12,fontFamily:"inherit",fontWeight:600,marginBottom:tl.show?8:0}}>
+                  {tl.show?"✕ 取消領取":"＋ 領取生豆"}
+                </button>
+
+                {/* 領取表單 */}
+                {tl.show && (
+                  <div style={{background:"#fdf6ee",borderRadius:8,padding:"10px"}} className="fade">
+                    <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:7,marginBottom:7}}>
+                      <div>
+                        <label style={{fontSize:10,color:"#92450f",display:"block",marginBottom:3}}>領取量（克 g，必填）</label>
+                        <input value={tl.amount} onChange={e=>setTakeLog(tl=>({...tl,[b.id]:{...tl[b.id],amount:e.target.value}}))}
+                          placeholder="e.g. 300、500"
+                          style={{width:"100%",background:"#fff",border:"1px solid #d4a882",borderRadius:6,color:"#3d1a00",fontSize:13,padding:"6px 9px",fontFamily:"inherit"}}/>
+                      </div>
+                      <div>
+                        <label style={{fontSize:10,color:"#92450f",display:"block",marginBottom:3}}>備註（選填）</label>
+                        <input value={tl.note} onChange={e=>setTakeLog(tl=>({...tl,[b.id]:{...tl[b.id],note:e.target.value}}))}
+                          placeholder="e.g. 第三鍋測試"
+                          style={{width:"100%",background:"#fff",border:"1px solid #d4a882",borderRadius:6,color:"#3d1a00",fontSize:13,padding:"6px 9px",fontFamily:"inherit"}}/>
+                      </div>
+                    </div>
+                    <button onClick={()=>{
+                      if(!tl.amount) return;
+                      const today=new Date().toISOString().slice(0,10);
+                      const takeAmt=parseFloat(tl.amount)||0;
+                      const currentStock=parseFloat(b.stockG)||0;
+                      const remaining=Math.max(0, currentStock-takeAmt);
+                      const record={date:today,amount:takeAmt+"g",note:tl.note,remaining:remaining+"g"};
+                      const updated=beans.map(x=>{
+                        if(x.id!==b.id) return x;
+                        const hist=[...(x.takeHistory||[]),record];
+                        return {...x,takeHistory:hist,stockG:remaining};
+                      });
+                      setBeans(updated);
+                      const updatedBean=updated.find(x=>x.id===b.id);
+                      fbSave("beans",b.id,updatedBean);
+                      setTakeLog(tl=>({...tl,[b.id]:{amount:"",note:"",show:false}}));
+                    }} style={{width:"100%",background:"linear-gradient(135deg,#1d4ed8,#3b82f6)",border:"none",borderRadius:8,padding:"9px",color:"#fff",fontSize:13,fontFamily:"inherit",fontWeight:700}}>
+                      確認領取・記錄日期 {new Date().toISOString().slice(0,10)}
+                    </button>
+                  </div>
+                )}
+              </div>
+            );})}
+          </div>
+        )}
+
+      </div>
+    </div>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById("root")).render(<App/>);
+</script>
+</body>
+</html>
