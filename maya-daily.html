@@ -1,0 +1,712 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="theme-color" content="#0d0a1a">
+<title>瑪雅流日 · Kin 45</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Noto+Serif+TC:wght@400;600&family=Cinzel:wght@400;600&family=Noto+Sans+TC:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg: #0d0a1a;
+  --bg2: #13102a;
+  --bg3: #1a1630;
+  --card: rgba(255,255,255,0.05);
+  --card-border: rgba(255,255,255,0.1);
+  --purple-light: #c4b8ff;
+  --purple: #9d8df5;
+  --purple-dark: #6b5ce7;
+  --gold: #f0c060;
+  --gold-dim: #a8843a;
+  --teal: #5ddbb4;
+  --red: #ff7e7e;
+  --white: #f0eeff;
+  --muted: rgba(200,190,255,0.5);
+  --font-serif: 'Noto Serif TC', serif;
+  --font-display: 'Cinzel', serif;
+  --font-body: 'Noto Sans TC', sans-serif;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+
+html, body {
+  min-height: 100vh;
+  background: var(--bg);
+  color: var(--white);
+  font-family: var(--font-body);
+  overflow-x: hidden;
+}
+
+/* Star background */
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  background:
+    radial-gradient(ellipse at 20% 20%, rgba(109,80,220,0.18) 0%, transparent 55%),
+    radial-gradient(ellipse at 80% 80%, rgba(80,180,150,0.12) 0%, transparent 55%),
+    radial-gradient(ellipse at 50% 50%, rgba(20,10,50,0.9) 0%, transparent 100%);
+  pointer-events: none;
+  z-index: 0;
+}
+
+.stars {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 0;
+  overflow: hidden;
+}
+.star {
+  position: absolute;
+  border-radius: 50%;
+  background: white;
+  animation: twinkle var(--dur) ease-in-out infinite;
+  opacity: 0;
+}
+@keyframes twinkle {
+  0%,100%{opacity:0} 50%{opacity:var(--op)}
+}
+
+.page {
+  position: relative;
+  z-index: 1;
+  max-width: 440px;
+  margin: 0 auto;
+  padding: 0 0 4rem;
+  min-height: 100vh;
+}
+
+/* Header */
+.header {
+  text-align: center;
+  padding: 2.5rem 1.5rem 1.5rem;
+  position: relative;
+}
+.header-symbol {
+  font-family: var(--font-display);
+  font-size: 11px;
+  letter-spacing: .3em;
+  color: var(--purple);
+  text-transform: uppercase;
+  margin-bottom: 6px;
+  opacity: .8;
+}
+.header-date {
+  font-family: var(--font-serif);
+  font-size: 22px;
+  color: var(--white);
+  font-weight: 600;
+  margin-bottom: 4px;
+}
+.header-weekday {
+  font-size: 13px;
+  color: var(--muted);
+  margin-bottom: 1.5rem;
+}
+.nav-row {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+}
+.nav-btn {
+  background: var(--card);
+  border: 0.5px solid var(--card-border);
+  border-radius: 20px;
+  color: var(--purple-light);
+  font-size: 13px;
+  font-family: var(--font-body);
+  padding: 6px 18px;
+  cursor: pointer;
+  transition: background .2s;
+}
+.nav-btn:hover, .nav-btn:active { background: rgba(255,255,255,0.1); }
+.today-btn {
+  background: rgba(157,141,245,0.15);
+  border-color: var(--purple-dark);
+  color: var(--purple-light);
+  font-size: 12px;
+  padding: 5px 14px;
+}
+
+/* My Kin Banner */
+.my-kin {
+  margin: 0 1.2rem 1.2rem;
+  background: linear-gradient(135deg, rgba(107,92,231,0.25), rgba(80,180,150,0.15));
+  border: 0.5px solid rgba(157,141,245,0.4);
+  border-radius: 16px;
+  padding: 1rem 1.2rem;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+.my-kin-num {
+  font-family: var(--font-display);
+  font-size: 38px;
+  color: var(--purple-light);
+  line-height: 1;
+  min-width: 60px;
+  text-align: center;
+}
+.my-kin-info {}
+.my-kin-title {
+  font-family: var(--font-serif);
+  font-size: 14px;
+  color: var(--gold);
+  margin-bottom: 3px;
+}
+.my-kin-sub {
+  font-size: 12px;
+  color: var(--muted);
+  line-height: 1.6;
+}
+
+/* Daily Kin Card */
+.daily-card {
+  margin: 0 1.2rem 1.2rem;
+  background: var(--card);
+  border: 0.5px solid var(--card-border);
+  border-radius: 20px;
+  padding: 1.4rem 1.3rem;
+  position: relative;
+  overflow: hidden;
+}
+.daily-card::before {
+  content: '';
+  position: absolute;
+  top: -30px; right: -30px;
+  width: 120px; height: 120px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(157,141,245,0.15) 0%, transparent 70%);
+  pointer-events: none;
+}
+.dc-label {
+  font-size: 11px;
+  letter-spacing: .12em;
+  color: var(--muted);
+  margin-bottom: 12px;
+  font-family: var(--font-display);
+}
+.dc-main-row {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin-bottom: 14px;
+}
+.dc-glyph {
+  font-size: 44px;
+  line-height: 1;
+  filter: drop-shadow(0 0 12px rgba(157,141,245,0.6));
+}
+.dc-kin-num {
+  font-family: var(--font-display);
+  font-size: 13px;
+  color: var(--purple);
+  letter-spacing: .1em;
+  margin-bottom: 4px;
+}
+.dc-seal-name {
+  font-family: var(--font-serif);
+  font-size: 22px;
+  font-weight: 600;
+  color: var(--white);
+  margin-bottom: 3px;
+}
+.dc-seal-en {
+  font-size: 12px;
+  color: var(--muted);
+}
+.dc-color-tag {
+  display: inline-block;
+  font-size: 11px;
+  padding: 2px 10px;
+  border-radius: 10px;
+  margin-top: 5px;
+}
+.color-red { background: rgba(255,126,126,0.2); color: var(--red); border: 0.5px solid rgba(255,126,126,0.3); }
+.color-white { background: rgba(255,255,255,0.1); color: #ddd; border: 0.5px solid rgba(255,255,255,0.2); }
+.color-blue { background: rgba(93,219,180,0.15); color: var(--teal); border: 0.5px solid rgba(93,219,180,0.3); }
+.color-yellow { background: rgba(240,192,96,0.15); color: var(--gold); border: 0.5px solid rgba(240,192,96,0.3); }
+
+.divider { height: 0.5px; background: var(--card-border); margin: 14px 0; }
+
+.dc-tone-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+.dc-tone-badge {
+  font-family: var(--font-display);
+  font-size: 24px;
+  color: var(--gold);
+  min-width: 32px;
+}
+.dc-tone-info {}
+.dc-tone-name {
+  font-family: var(--font-serif);
+  font-size: 14px;
+  color: var(--gold);
+}
+.dc-tone-kw {
+  font-size: 12px;
+  color: var(--muted);
+  margin-top: 1px;
+}
+.pip-row {
+  display: flex;
+  gap: 5px;
+  margin-bottom: 14px;
+  flex-wrap: wrap;
+}
+.pip {
+  width: 10px; height: 10px;
+  border-radius: 50%;
+  background: rgba(255,255,255,0.12);
+  border: 0.5px solid rgba(255,255,255,0.2);
+  transition: background .3s;
+}
+.pip.on { background: var(--gold); border-color: var(--gold); box-shadow: 0 0 6px rgba(240,192,96,0.5); }
+
+.dc-desc {
+  font-size: 14px;
+  line-height: 1.85;
+  color: rgba(220,210,255,0.85);
+  font-family: var(--font-serif);
+}
+
+/* Wave */
+.wave-section {
+  margin-top: 14px;
+}
+.wave-lbl {
+  font-size: 11px;
+  color: var(--muted);
+  letter-spacing: .08em;
+  margin-bottom: 8px;
+}
+.wave-cells {
+  display: flex;
+  gap: 5px;
+  flex-wrap: wrap;
+}
+.wc {
+  width: 26px; height: 26px;
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 11px;
+  font-weight: 500;
+  border: 0.5px solid rgba(255,255,255,0.1);
+  color: var(--muted);
+  background: rgba(255,255,255,0.04);
+}
+.wc.active-wc {
+  background: rgba(240,192,96,0.2);
+  border-color: var(--gold);
+  color: var(--gold);
+  box-shadow: 0 0 8px rgba(240,192,96,0.3);
+}
+
+/* Resonance card */
+.resonance-card {
+  margin: 0 1.2rem 1.2rem;
+  background: linear-gradient(135deg, rgba(93,219,180,0.08), rgba(107,92,231,0.1));
+  border: 0.5px solid rgba(93,219,180,0.3);
+  border-radius: 16px;
+  padding: 1rem 1.2rem;
+  display: none;
+}
+.resonance-label {
+  font-size: 11px;
+  letter-spacing: .12em;
+  color: var(--teal);
+  margin-bottom: 8px;
+  font-family: var(--font-display);
+}
+.resonance-text {
+  font-size: 14px;
+  line-height: 1.8;
+  color: rgba(200,255,235,0.85);
+  font-family: var(--font-serif);
+}
+
+/* Taurus */
+.taurus-card {
+  margin: 0 1.2rem 1.2rem;
+  background: rgba(240,192,96,0.06);
+  border: 0.5px solid rgba(240,192,96,0.25);
+  border-radius: 20px;
+  padding: 1.3rem;
+}
+.taurus-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 12px;
+}
+.taurus-symbol {
+  font-size: 26px;
+  filter: drop-shadow(0 0 8px rgba(240,192,96,0.4));
+}
+.taurus-title {
+  font-family: var(--font-display);
+  font-size: 14px;
+  color: var(--gold);
+  letter-spacing: .08em;
+}
+.taurus-sub {
+  font-size: 11px;
+  color: var(--gold-dim);
+  margin-top: 2px;
+}
+.taurus-text {
+  font-size: 14px;
+  line-height: 1.85;
+  color: rgba(255,235,180,0.8);
+  font-family: var(--font-serif);
+}
+
+/* Oracle section */
+.oracle-section {
+  margin: 0 1.2rem 1.2rem;
+}
+.oracle-title {
+  font-size: 11px;
+  letter-spacing: .12em;
+  color: var(--muted);
+  font-family: var(--font-display);
+  margin-bottom: 10px;
+  padding-left: 2px;
+}
+.oracle-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+.oracle-cell {
+  background: var(--card);
+  border: 0.5px solid var(--card-border);
+  border-radius: 12px;
+  padding: .75rem .9rem;
+}
+.oc-role {
+  font-size: 10px;
+  letter-spacing: .1em;
+  color: var(--muted);
+  margin-bottom: 4px;
+}
+.oc-val {
+  font-family: var(--font-serif);
+  font-size: 15px;
+  color: var(--white);
+}
+.oc-kin {
+  font-size: 11px;
+  color: var(--muted);
+  margin-top: 2px;
+}
+
+/* Footer */
+.footer {
+  text-align: center;
+  padding: 2rem 1rem 1rem;
+  font-size: 11px;
+  color: rgba(200,190,255,0.3);
+  letter-spacing: .1em;
+}
+</style>
+</head>
+<body>
+
+<div class="stars" id="stars"></div>
+
+<div class="page">
+  <div class="header">
+    <div class="header-symbol">Tzolk'in · 卓爾金曆</div>
+    <div class="header-date" id="headerDate">—</div>
+    <div class="header-weekday" id="headerWeekday">—</div>
+    <div class="nav-row">
+      <button class="nav-btn" onclick="shift(-1)">← 前日</button>
+      <button class="nav-btn today-btn" onclick="goToday()">今日</button>
+      <button class="nav-btn" onclick="shift(1)">後日 →</button>
+    </div>
+  </div>
+
+  <!-- 本命 Kin -->
+  <div class="my-kin">
+    <div class="my-kin-num">45</div>
+    <div class="my-kin-info">
+      <div class="my-kin-title">⚡ 超頻紅蛇 · 你的本命 Kin</div>
+      <div class="my-kin-sub">音調 5 · 封印：紅蛇<br>1983 / 04 / 28</div>
+    </div>
+  </div>
+
+  <!-- 流日主卡 -->
+  <div class="daily-card">
+    <div class="dc-label">TODAY'S KIN · 今日流日</div>
+    <div class="dc-main-row">
+      <div class="dc-glyph" id="glyph">🐉</div>
+      <div>
+        <div class="dc-kin-num" id="kinLabel">KIN —</div>
+        <div class="dc-seal-name" id="sealName">—</div>
+        <div class="dc-seal-en" id="sealEn">—</div>
+        <span class="dc-color-tag" id="colorTag">—</span>
+      </div>
+    </div>
+    <div class="divider"></div>
+    <div class="dc-tone-row">
+      <div class="dc-tone-badge" id="toneBadge">1</div>
+      <div class="dc-tone-info">
+        <div class="dc-tone-name" id="toneName">—</div>
+        <div class="dc-tone-kw" id="toneKw">—</div>
+      </div>
+    </div>
+    <div class="pip-row" id="pipRow"></div>
+    <div class="dc-desc" id="desc">—</div>
+    <div class="wave-section">
+      <div class="wave-lbl">波符行進位置 · 第 <span id="wavePos">—</span> 天</div>
+      <div class="wave-cells" id="waveCells"></div>
+    </div>
+  </div>
+
+  <!-- 共鳴提示 -->
+  <div class="resonance-card" id="resonanceCard">
+    <div class="resonance-label">✦ KIN 45 · 本命共鳴</div>
+    <div class="resonance-text" id="resonanceText">—</div>
+  </div>
+
+  <!-- 神諭四方向 -->
+  <div class="oracle-section">
+    <div class="oracle-title">ORACLE · 今日神諭四方向</div>
+    <div class="oracle-grid" id="oracleGrid"></div>
+  </div>
+
+  <!-- 金牛座 -->
+  <div class="taurus-card">
+    <div class="taurus-header">
+      <div class="taurus-symbol">♉</div>
+      <div>
+        <div class="taurus-title">TAURUS · 金牛座</div>
+        <div class="taurus-sub">今日星能量建議</div>
+      </div>
+    </div>
+    <div class="taurus-text" id="taurusText">—</div>
+  </div>
+
+  <div class="footer">
+    ✦ 維心書苑 · 瑪雅年曆流日 ✦<br>
+    Kin 45 · 超頻紅蛇
+  </div>
+</div>
+
+<script>
+// Generate stars
+(function(){
+  const c = document.getElementById('stars');
+  for(let i=0;i<80;i++){
+    const s = document.createElement('div');
+    s.className='star';
+    s.style.cssText=`left:${Math.random()*100}%;top:${Math.random()*100}%;width:${Math.random()*2+1}px;height:${Math.random()*2+1}px;--dur:${(Math.random()*4+2).toFixed(1)}s;--op:${(Math.random()*0.6+0.2).toFixed(2)};animation-delay:${(Math.random()*5).toFixed(1)}s`;
+    c.appendChild(s);
+  }
+})();
+
+const SEALS = [
+  {name:'龍',en:'Imix',kw:'孕育',color:'red',g:'🐉',
+   desc:'原始創造的力量湧現。今日適合開啟新事物，讓自己被宇宙滋養，接受支持，照顧內在最深的需求與感受。'},
+  {name:'風',en:"Ik'",kw:'溝通',color:'white',g:'🌬️',
+   desc:'靈感之風帶來真理的訊息。今日言語帶有特別的力量，說出真心話，聆聽直覺，讓溝通成為心靈橋梁。'},
+  {name:'夜',en:"Ak'bal",kw:'夢想',color:'blue',g:'🌙',
+   desc:'深邃夜的靜默藏有洞見。今日適合冥想與內省，讓潛意識帶來珍貴的啟示，在夢境與直覺中找到答案。'},
+  {name:'種子',en:'Kan',kw:'開花',color:'yellow',g:'🌱',
+   desc:'今日播下意圖的種子。專注你真正渴望的目標，積蓄能量，一個清晰的念頭就能改變整條人生軌跡。'},
+  {name:'蛇',en:'Chicchan',kw:'生命力',color:'red',g:'🐍',
+   desc:'昆達里尼生命能量今日覺醒流動。相信身體的智慧，果斷行動，釋放本能的強大力量，活出最真實的自己。'},
+  {name:'世界橋',en:'Cimi',kw:'平等',color:'white',g:'🌉',
+   desc:'轉化與臣服的神聖時刻。今日放下不再需要的舊模式，以謙遜之心擁抱蛻變，讓死亡帶來新生。'},
+  {name:'手',en:'Manik',kw:'成就',color:'blue',g:'🙌',
+   desc:'療癒之手今日能量充沛。動手完成積累已久的事，給予他人協助，圓滿在每一個行動中誕生。'},
+  {name:'星星',en:'Lamat',kw:'優雅',color:'yellow',g:'⭐',
+   desc:'金星之光閃耀，和諧之美綻放。今日欣賞生命的美好，創作或享受藝術，以優雅之姿回應一切。'},
+  {name:'月亮',en:'Muluc',kw:'淨化',color:'red',g:'🌕',
+   desc:'流動的水淨化情緒能量。今日覺察內在感受，允許情緒自然流動，不壓抑、不逃避，心自然清明如鏡。'},
+  {name:'狗',en:'Oc',kw:'忠誠',color:'white',g:'🐕',
+   desc:'無條件的愛與忠誠今日流動。珍視你的友誼與夥伴，以真心相待，深化彼此的信任，愛是最高的魔法。'},
+  {name:'猴',en:'Chuen',kw:'遊戲',color:'blue',g:'🐒',
+   desc:'神聖的玩耍帶來創意靈感。今日輕鬆以對，讓幽默化解嚴肅，創意在笑聲中自由流淌，享受當下每刻。'},
+  {name:'人',en:'Eb',kw:'自由意志',color:'yellow',g:'🧑',
+   desc:'人類進化之路在腳下延伸。今日謙遜服務他人，用自由意志選擇走向光明，每一個選擇都在書寫命運。'},
+  {name:'天行者',en:'Ben',kw:'空間',color:'red',g:'🚀',
+   desc:'天地之間的探索者今日出發。突破既有框架，連結天上的啟示與地上的行動，勇敢探索新的可能性。'},
+  {name:'巫師',en:'Ix',kw:'無時間',color:'white',g:'🧙',
+   desc:'美洲豹的神祕魔法流動。今日進入心的永恆時間，心想事成的能量特別強烈，與內在魔法師深度相遇。'},
+  {name:'老鷹',en:'Men',kw:'展望',color:'blue',g:'🦅',
+   desc:'老鷹高飛俯瞰全局。今日提升視野，從更大格局看待一切，為生命的宏大願景採取最具體的行動。'},
+  {name:'戰士',en:'Cib',kw:'智慧',color:'yellow',g:'⚔️',
+   desc:'宇宙戰士帶來勇氣與深度智慧。今日以恐懼為老師，深問生命目的，勇敢面對內在陰影，獲得真正自由。'},
+  {name:'大地',en:'Caban',kw:'進化',color:'red',g:'🌍',
+   desc:'大地的震動帶來宇宙同步信號。今日與自然連結，跟隨內在指引，你的思想與地球頻率共振，創造進化。'},
+  {name:'鏡子',en:'Etznab',kw:'無限',color:'white',g:'🪞',
+   desc:'真相的無限反射映照一切。今日誠實面對自己，去除幻象看見真實，接受事物本來的樣子，清醒而自由。'},
+  {name:'風暴',en:'Cauac',kw:'自我創造',color:'blue',g:'⛈️',
+   desc:'催化的閃電帶來深層淨化。今日擁抱改變與混亂，暴風過後必見彩虹，這是自我更新最強大的時機。'},
+  {name:'太陽',en:'Ahau',kw:'無條件的愛',color:'yellow',g:'☀️',
+   desc:'太陽的愛無條件照耀萬物。今日敞開心扉，給予與接受純粹的愛，記起自己是光，讓愛從你流向世界。'},
+];
+
+const TONES = [
+  {n:1,name:'磁性',kw:'目的 · Purpose',desc:'今日吸引力最強，以清晰意圖召喚你真正需要的一切。'},
+  {n:2,name:'月亮',kw:'挑戰 · Challenge',desc:'今日面對極性對立，在矛盾中尋找平衡，挑戰即是成長的禮物。'},
+  {n:3,name:'電力',kw:'服務 · Service',desc:'今日以行動服務他人，三的電力激活你內在的使命與熱情。'},
+  {n:4,name:'自我存在',kw:'形式 · Form',desc:'今日落地執行，給抽象的夢想一個具體的結構與形式。'},
+  {n:5,name:'超頻',kw:'賦權 · Empower',desc:'今日能量超越限制，以最高意志授權自己大步前進，突破一切。'},
+  {n:6,name:'韻律',kw:'平衡 · Balance',desc:'今日在動與靜之間找到韻律，讓生命的節奏回歸自然流動。'},
+  {n:7,name:'共鳴',kw:'靈感 · Channel',desc:'今日頻率與宇宙完全共鳴，靈感如泉湧，直覺超級準確。'},
+  {n:8,name:'銀河',kw:'誠信 · Integrity',desc:'今日活出你的核心價值，言行合一，散發銀河般的完整光芒。'},
+  {n:9,name:'太陽',kw:'意圖 · Intention',desc:'今日以清晰意圖推進一切，太陽能量支持你大膽採取行動。'},
+  {n:10,name:'行星',kw:'展現 · Manifestation',desc:'今日成果顯化，所播下的種子開始在物質世界呈現具體結果。'},
+  {n:11,name:'光譜',kw:'釋放 · Release',desc:'今日釋放不再服務你的一切，清空是為了迎接更大的豐盛。'},
+  {n:12,name:'水晶',kw:'合作 · Cooperation',desc:'今日與他人合作共創，集體智慧與共同意願遠大於個人力量。'},
+  {n:13,name:'宇宙',kw:'臨在 · Presence',desc:'今日全然活在當下，感受宇宙的廣闊無垠，一切在此刻圓滿。'},
+];
+
+const ORACLE_ROLES = ['引導力量','類比力量','對面挑戰','隱藏力量'];
+
+function getOracleKins(kin) {
+  // Guide: same color family, higher tone in wavespell
+  const {tone, seal} = kinToSealTone(kin);
+  // Guide power: tone determines which seal in same color family
+  const colorMap = [0,5,10,15,9,14,19,4,8,13,18,3,7,12,17,2,6,11,16,1]; // simplified
+  const guide = ((kin - 1 + 52) % 260) + 1; // approximate
+  const antipode = ((kin - 1 + 130) % 260) + 1;
+  const analog = ((kin - 1 + 20) % 260) + 1;
+  const hidden = ((260 - kin) % 260) + 1;
+  return [guide, analog, antipode, hidden];
+}
+
+const TAURUS_POOL = [
+  '土星能量今日穩定落地，適合專注財務規劃或長期目標的執行。腳踏實地，每一步都在積累真實的豐盛。',
+  '金星守護力量今日特別強。主動表達感謝，用心建立關係，美好的連結將為你帶來意想不到的機緣。',
+  '今日可能對改變感到些微抗拒，這是金牛座的天性之一。宇宙輕輕邀請你放鬆握緊的手，讓新能量流入。',
+  '物質豐盛的能量圍繞著你。今日適合審視日常習慣，那些看似微小的好習慣，正是你通往豐盛的最短路徑。',
+  '感官享受的日子。讓自己好好品味美食、音樂或大自然，全然活在當下的享受就是金牛座最高的靈性修煉。',
+  '耐心是你最強大的武器。今日不必急於看到結果，信任過程，你種下的一切都在悄悄生長，時機到了必然開花。',
+  '今日適合整理空間與財務。清晰的環境帶來清晰的思路，一個小小的整理行動，能量就會立刻開始流動。',
+  '人際關係上今日宜多聆聽。你的穩重讓他人感到安全，成為別人的依靠與避風港，也是你珍貴的天賦。',
+  '宇宙今日鼓勵你在安全感中，勇敢踏出一個小步。不必打破全部，只需往前一步，就能看見嶄新的風景。',
+  '創意能量高漲，今日適合任何與美有關的創作——設計、烹飪、園藝或音樂，讓雙手創造你心中的美。',
+  '今日適合與最親近的人共享時光。金牛座的愛是實際而深厚的，一頓用心準備的飯，勝過千言萬語。',
+  '金錢能量今日流動。若有投資或理財的決定，謹慎評估後可穩健行動，長線思維與耐心是你最大的優勢。',
+  '今日身體需要更多的關注與照顧。適當休息，補充好的食物與水。照顧好這個承載你靈魂的身體，就是愛自己。',
+  '今日適合在大自然中散步或靜坐。土象星座的你與大地能量天然共鳴，踩在真實的土地上，力量自然回歸。',
+];
+
+function kinToSealTone(kin) {
+  return { tone: ((kin-1)%13)+1, seal: ((kin-1)%20) };
+}
+
+function dateToKin(d) {
+  const anchor = new Date(1983,3,28);
+  const diff = Math.round((d-anchor)/86400000);
+  return ((44+diff)%260+260)%260+1;
+}
+
+let offset = 0;
+
+function getDate() {
+  const d = new Date();
+  d.setDate(d.getDate()+offset);
+  d.setHours(0,0,0,0);
+  return d;
+}
+
+function fmt(d) {
+  const w = ['日','一','二','三','四','五','六'];
+  return {
+    date: d.getFullYear()+' / '+String(d.getMonth()+1).padStart(2,'0')+' / '+String(d.getDate()).padStart(2,'0'),
+    week: '週'+w[d.getDay()]
+  };
+}
+
+function render() {
+  const d = getDate();
+  const kin = dateToKin(d);
+  const {tone,seal} = kinToSealTone(kin);
+  const S = SEALS[seal];
+  const T = TONES[tone-1];
+  const f = fmt(d);
+
+  document.getElementById('headerDate').textContent = f.date;
+  document.getElementById('headerWeekday').textContent = f.week + (offset===0?' · 今日':offset===-1?' · 昨日':offset===1?' · 明日':'');
+
+  document.getElementById('glyph').textContent = S.g;
+  document.getElementById('kinLabel').textContent = 'KIN ' + kin;
+  document.getElementById('sealName').textContent = T.name + ' ' + S.name;
+  document.getElementById('sealEn').textContent = S.en + ' · ' + S.kw;
+
+  const ct = document.getElementById('colorTag');
+  ct.className = 'dc-color-tag color-'+S.color;
+  const colorNames = {red:'紅色系',white:'白色系',blue:'蓝色系',yellow:'黃色系'};
+  ct.textContent = colorNames[S.color];
+
+  document.getElementById('toneBadge').textContent = tone;
+  document.getElementById('toneName').textContent = '音調 '+tone+' · '+T.name;
+  document.getElementById('toneKw').textContent = T.kw;
+
+  let pips='';
+  for(let i=1;i<=13;i++) pips+=`<div class="pip${i<=tone?' on':''}"></div>`;
+  document.getElementById('pipRow').innerHTML=pips;
+  document.getElementById('desc').textContent = S.desc + '\n\n' + T.desc;
+  document.getElementById('wavePos').textContent = tone;
+
+  let wc='';
+  for(let i=1;i<=13;i++) wc+=`<div class="wc${i===tone?' active-wc':''}">${i}</div>`;
+  document.getElementById('waveCells').innerHTML=wc;
+
+  // Resonance
+  const rc = document.getElementById('resonanceCard');
+  const rt = document.getElementById('resonanceText');
+  if(kin===45){
+    rc.style.display='block';
+    rt.textContent='✨ 今天是你的本命流日！Kin 45 超頻紅蛇完全共振，這是每 260 天一次的神聖時刻。能量最強，特別適合設定宏大意圖、啟動重要計畫或深度靜心，感受靈魂最本質的頻率。';
+  } else if(seal===4){
+    rc.style.display='block';
+    rt.textContent='今日封印與你本命相同——紅蛇的生命力能量加持你。行動力特別強大，相信身體的智慧，果斷前進。';
+  } else if(tone===5){
+    rc.style.display='block';
+    rt.textContent='今日音調與你本命相同——超頻5的賦權能量共振。適合突破限制、展現意志、超越過去的框架。';
+  } else if(Math.abs(seal-4)===10){
+    rc.style.display='block';
+    rt.textContent='今日流日與你本命 Kin 45 形成神聖對面，相反能量帶來最大學習。留意今日出現的人與情境，挑戰即是禮物。';
+  } else {
+    rc.style.display='none';
+  }
+
+  // Oracle
+  const orKins = getOracleKins(kin);
+  let og='';
+  for(let i=0;i<4;i++){
+    const ok=orKins[i];
+    const {seal:os,tone:ot}=kinToSealTone(ok);
+    og+=`<div class="oracle-cell"><div class="oc-role">${ORACLE_ROLES[i]}</div><div class="oc-val">${TONES[ot-1].name} ${SEALS[os].name}</div><div class="oc-kin">Kin ${ok}</div></div>`;
+  }
+  document.getElementById('oracleGrid').innerHTML=og;
+
+  // Taurus
+  const idx=(kin+d.getDate()+d.getMonth())%TAURUS_POOL.length;
+  document.getElementById('taurusText').textContent=TAURUS_POOL[idx];
+}
+
+function shift(n){offset+=n;render();}
+function goToday(){offset=0;render();}
+
+render();
+</script>
+</body>
+</html>
