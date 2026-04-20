@@ -1,0 +1,706 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="體重記錄">
+<title>體重記錄</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display&family=DM+Sans:ital,wght@0,300;0,400;0,500;1,300&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #F7F4EF;
+    --card: #FFFFFF;
+    --accent: #3D6B4F;
+    --accent2: #C17A3A;
+    --text: #1C1C1A;
+    --muted: #8A8880;
+    --border: #E5E2DC;
+    --danger: #B94040;
+    --warn: #C17A3A;
+    --good: #3D6B4F;
+    --up-bg: #FDF0F0;
+    --up-text: #B94040;
+    --down-bg: #EDF5F0;
+    --down-text: #3D6B4F;
+    --radius: 16px;
+    --radius-sm: 10px;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+  html, body {
+    font-family: 'DM Sans', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    font-size: 16px;
+    -webkit-font-smoothing: antialiased;
+  }
+  .app { max-width: 480px; margin: 0 auto; padding: 0 0 100px; }
+
+  /* Header */
+  .header { padding: 52px 20px 16px; }
+  .header-title { font-family: 'DM Serif Display', serif; font-size: 30px; line-height: 1.1; margin-bottom: 4px; }
+  .header-sub { font-size: 13px; color: var(--muted); font-weight: 300; }
+  .header-name { color: var(--accent); font-weight: 500; }
+
+  /* Goal banner */
+  .goal-banner {
+    margin: 0 16px 14px;
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 16px 20px;
+  }
+  .goal-banner-row { display: flex; justify-content: space-between; align-items: flex-end; }
+  .goal-item { text-align: center; flex: 1; }
+  .goal-item-label { font-size: 10px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 4px; }
+  .goal-item-val { font-family: 'DM Serif Display', serif; font-size: 24px; color: var(--text); line-height: 1; }
+  .goal-item-unit { font-size: 11px; color: var(--muted); margin-left: 1px; }
+  .goal-divider { width: 1px; background: var(--border); height: 40px; margin: 0 8px; }
+  .goal-diff-val { font-family: 'DM Serif Display', serif; font-size: 28px; }
+  .goal-diff-val.achieved { color: var(--good); }
+  .goal-diff-val.close { color: var(--warn); }
+  .goal-diff-val.far { color: var(--text); }
+  .goal-since { font-size: 11px; color: var(--muted); margin-top: 10px; padding-top: 10px; border-top: 1px solid var(--border); text-align: center; }
+
+  /* Card */
+  .card { background: var(--card); border-radius: var(--radius); padding: 18px 18px; margin: 0 16px 14px; border: 1px solid var(--border); }
+  .card-title { font-size: 11px; font-weight: 500; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); margin-bottom: 14px; }
+
+  /* Form */
+  .field { margin-bottom: 11px; }
+  .field:last-child { margin-bottom: 0; }
+  .field label { display: block; font-size: 12px; color: var(--muted); margin-bottom: 5px; }
+  .field input, .field select {
+    width: 100%; padding: 11px 13px; font-size: 16px; font-family: 'DM Sans', sans-serif;
+    border: 1.5px solid var(--border); border-radius: var(--radius-sm);
+    background: var(--bg); color: var(--text); -webkit-appearance: none; transition: border-color 0.15s;
+  }
+  .field input:focus, .field select:focus { outline: none; border-color: var(--accent); }
+  .field input::placeholder { color: #C8C5BF; }
+  .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .form-row-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; }
+
+  /* Save buttons */
+  .save-btns { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 14px; }
+  .btn {
+    padding: 13px; font-size: 14px; font-family: 'DM Sans', sans-serif; font-weight: 500;
+    border-radius: var(--radius-sm); border: none; cursor: pointer; transition: opacity 0.15s, transform 0.1s;
+    -webkit-appearance: none; letter-spacing: 0.01em;
+  }
+  .btn:active { opacity: 0.82; transform: scale(0.98); }
+  .btn-morning { background: #EAF3EE; color: var(--accent); }
+  .btn-evening { background: var(--accent); color: #fff; }
+  .btn-full { width: 100%; margin-top: 14px; background: var(--accent); color: #fff; padding: 14px; font-size: 15px; font-family: 'DM Sans', sans-serif; font-weight: 500; border-radius: var(--radius-sm); border: none; cursor: pointer; -webkit-appearance: none; }
+  .btn-full:active { opacity: 0.85; transform: scale(0.99); }
+
+  /* Today preview */
+  .today-preview {
+    background: var(--bg);
+    border-radius: var(--radius-sm);
+    padding: 10px 13px;
+    margin-bottom: 12px;
+    display: none;
+    border: 1px solid var(--border);
+  }
+  .today-preview-title { font-size: 11px; color: var(--muted); margin-bottom: 6px; }
+  .today-preview-row { display: flex; gap: 16px; }
+  .today-preview-item { font-size: 13px; color: var(--text); }
+  .today-preview-item span { color: var(--muted); font-size: 11px; margin-right: 3px; }
+
+  /* Metrics */
+  .metrics { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin: 0 16px 14px; }
+  .metric { background: var(--card); border-radius: var(--radius-sm); padding: 13px 15px; border: 1px solid var(--border); }
+  .metric-label { font-size: 11px; color: var(--muted); margin-bottom: 5px; }
+  .metric-val { font-family: 'DM Serif Display', serif; font-size: 26px; line-height: 1; color: var(--text); }
+  .metric-unit { font-size: 12px; color: var(--muted); font-family: 'DM Sans', sans-serif; font-weight: 300; margin-left: 2px; }
+  .metric-sub { font-size: 11px; margin-top: 3px; }
+  .metric-val.good, .metric-sub.good { color: var(--good); }
+  .metric-val.warn, .metric-sub.warn { color: var(--warn); }
+  .metric-val.danger, .metric-sub.danger { color: var(--danger); }
+
+  /* Section label */
+  .section-label { font-size: 11px; font-weight: 500; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); padding: 0 20px; margin-bottom: 10px; }
+
+  /* Tabs */
+  .tabs { display: flex; gap: 6px; margin: 0 16px 12px; }
+  .tab {
+    flex: 1; padding: 9px; font-size: 13px; font-family: 'DM Sans', sans-serif; font-weight: 500;
+    border-radius: var(--radius-sm); border: 1.5px solid var(--border);
+    background: transparent; color: var(--muted); cursor: pointer; transition: all 0.15s; -webkit-appearance: none;
+  }
+  .tab.active { background: var(--accent); border-color: var(--accent); color: #fff; }
+
+  /* History table */
+  .history-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  .history-table th {
+    text-align: left; font-size: 10px; font-weight: 500; letter-spacing: 0.06em;
+    text-transform: uppercase; color: var(--muted); padding: 0 0 10px;
+    border-bottom: 1px solid var(--border);
+  }
+  .history-table th:not(:first-child) { text-align: right; }
+  .history-table td { padding: 11px 0; border-bottom: 1px solid var(--border); vertical-align: middle; color: var(--text); }
+  .history-table td:not(:first-child) { text-align: right; }
+  .history-table tr:last-child td { border-bottom: none; padding-bottom: 0; }
+  .history-table tr:first-child td { padding-top: 10px; }
+
+  .td-date { font-size: 12px; color: var(--muted); font-weight: 300; }
+  .td-weight { font-size: 15px; font-family: 'DM Serif Display', serif; }
+  .td-weight.empty { color: var(--border); font-size: 13px; font-family: 'DM Sans', sans-serif; }
+  .td-bmi { font-size: 13px; }
+
+  .tag { display: inline-block; font-size: 11px; font-weight: 500; padding: 2px 7px; border-radius: 20px; }
+  .tag.up { background: var(--up-bg); color: var(--up-text); }
+  .tag.down { background: var(--down-bg); color: var(--down-text); }
+  .tag.same { background: var(--bg); color: var(--muted); border: 1px solid var(--border); }
+
+  .del-btn { background: none; border: none; cursor: pointer; color: var(--border); font-size: 16px; padding: 0 0 0 8px; line-height: 1; transition: color 0.15s; }
+  .del-btn:active { color: var(--danger); }
+
+  /* Chart */
+  .chart-wrap { position: relative; height: 200px; width: 100%; }
+
+  .empty-state { text-align: center; padding: 28px 0 8px; color: var(--muted); font-size: 13px; font-weight: 300; }
+  input[type=number]::-webkit-inner-spin-button,
+  input[type=number]::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
+  input[type=number] { -moz-appearance: textfield; }
+</style>
+</head>
+<body>
+<div class="app">
+
+  <div class="header">
+    <div class="header-title">體重記錄</div>
+    <div class="header-sub" id="header-sub">設定你的資料，開始記錄</div>
+  </div>
+
+  <!-- Goal banner -->
+  <div class="goal-banner" id="goal-banner">
+    <!-- 第一排：現在體重 & 目標體重 -->
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px;">
+      <div style="background:#F7F4EF;border-radius:10px;padding:12px 14px;">
+        <div class="goal-item-label">現在體重</div>
+        <div><span class="goal-item-val" id="g-current">—</span><span class="goal-item-unit"> kg</span></div>
+      </div>
+      <div style="background:#F7F4EF;border-radius:10px;padding:12px 14px;">
+        <div class="goal-item-label">目標體重</div>
+        <div><span class="goal-item-val" id="g-target">—</span><span class="goal-item-unit"> kg</span></div>
+      </div>
+    </div>
+    <!-- 第二排：還差 -->
+    <div style="background:#EAF3EE;border-radius:10px;padding:14px 16px;text-align:center;margin-bottom:10px;">
+      <div class="goal-item-label" style="margin-bottom:6px;">還需努力</div>
+      <div>
+        <span class="goal-item-val goal-diff-val" id="g-diff" style="font-size:32px;">—</span>
+        <span class="goal-item-unit" id="g-diff-unit" style="font-size:14px;"> kg</span>
+      </div>
+      <div id="goal-encourage" style="display:none;font-size:13px;font-weight:500;color:var(--accent);margin-top:8px;padding-top:8px;border-top:1px solid rgba(61,107,79,0.2);"></div>
+      <div id="daily-quote" style="font-size:12px;color:#5F8A70;margin-top:8px;padding-top:8px;border-top:1px solid rgba(61,107,79,0.15);font-style:italic;line-height:1.6;"></div>
+    </div>
+    <div class="goal-since" id="g-since"></div>
+  </div>
+
+  <!-- Profile -->
+  <div class="card">
+    <div class="card-title">個人資料</div>
+    <div class="form-row">
+      <div class="field"><label>姓名</label><input type="text" id="name" placeholder="Alex" autocomplete="off" autocorrect="off" spellcheck="false"></div>
+      <div class="field"><label>年齡</label><input type="number" id="age" placeholder="25" inputmode="numeric"></div>
+    </div>
+    <div class="field"><label>身高 (cm)</label><input type="number" id="height" placeholder="170" inputmode="decimal"></div>
+    <div class="form-row">
+      <div class="field"><label>目前體重 (kg)</label><input type="number" id="current-weight" placeholder="65.0" step="0.1" inputmode="decimal"></div>
+      <div class="field"><label>目標體重 (kg)</label><input type="number" id="goal-weight" placeholder="60.0" step="0.1" inputmode="decimal"></div>
+    </div>
+    <div class="field">
+      <label>減重起始日</label>
+      <div style="display:flex;align-items:center;gap:10px;">
+        <input type="date" id="start-date" style="flex:1;">
+        <div id="day-counter" style="display:none;background:#EAF3EE;border-radius:8px;padding:6px 12px;white-space:nowrap;">
+          <span style="font-size:11px;color:var(--muted);">第</span>
+          <span id="day-count" style="font-family:'DM Serif Display',serif;font-size:20px;color:var(--accent);margin:0 2px;"></span>
+          <span style="font-size:11px;color:var(--muted);">天</span>
+        </div>
+      </div>
+    </div>
+    <div class="field"><label>起始體重 (kg)</label><input type="number" id="start-weight" placeholder="例如 72.0" step="0.1" inputmode="decimal"></div>
+  </div>
+
+  <!-- Record -->
+  <div class="card">
+    <div class="card-title">新增記錄</div>
+    <div class="field"><label>日期</label><input type="date" id="rec-date"></div>
+
+    <div id="today-preview" class="today-preview">
+      <div class="today-preview-title">今天已記錄</div>
+      <div class="today-preview-row" id="today-preview-row"></div>
+    </div>
+
+    <div class="form-row">
+      <div class="field"><label>早晨體重 (kg)</label><input type="number" id="morning-w" placeholder="65.0" step="0.1" inputmode="decimal"></div>
+      <div class="field"><label>晚上體重 (kg)</label><input type="number" id="evening-w" placeholder="66.2" step="0.1" inputmode="decimal"></div>
+    </div>
+    <div class="field"><label>體脂率 % <span style="font-size:11px;color:var(--accent);background:#EAF3EE;padding:2px 6px;border-radius:10px;font-weight:400;">無輸入將自動估算</span></label><input type="number" id="fat-pct" placeholder="20.0" step="0.1" inputmode="decimal"></div>
+
+    <div class="save-btns">
+      <button class="btn btn-morning" onclick="savePartial('morning')">☀️ 存早晨</button>
+      <button class="btn btn-evening" onclick="savePartial('evening')">🌙 存晚上</button>
+    </div>
+  </div>
+
+  <!-- Metrics -->
+  <div id="metrics-area" style="display:none;">
+    <div class="section-label">最新計算結果</div>
+    <div class="metrics" id="metrics-grid"></div>
+  </div>
+
+  <!-- History -->
+  <div id="history-area" style="display:none;">
+    <div class="section-label">記錄歷史</div>
+    <div class="tabs">
+      <button class="tab active" id="tab-list" onclick="switchView('list')">列表</button>
+      <button class="tab" id="tab-chart" onclick="switchView('chart')">圖表</button>
+    </div>
+    <div class="card" id="list-view"></div>
+    <div class="card" id="chart-view" style="display:none;">
+      <div class="chart-wrap"><canvas id="wChart" role="img" aria-label="體重趨勢圖">體重趨勢</canvas></div>
+    </div>
+  </div>
+
+</div>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<script>
+const $ = id => document.getElementById(id);
+let records = [];
+let chartInst = null;
+let currentView = 'list';
+
+try { records = JSON.parse(localStorage.getItem('wt_v5') || '[]'); } catch(e) {}
+
+// Load profile
+try {
+  const p = JSON.parse(localStorage.getItem('wt_profile_v5') || '{}');
+  if (p.name)        $('name').value = p.name;
+  if (p.age)         $('age').value = p.age;
+  if (p.height)      $('height').value = p.height;
+  if (p.goalWeight)    $('goal-weight').value = p.goalWeight;
+  if (p.currentWeight) $('current-weight').value = p.currentWeight;
+  if (p.startDate)     $('start-date').value = p.startDate;
+  if (p.startWeight)   $('start-weight').value = p.startWeight;
+} catch(e) {}
+
+$('rec-date').value = new Date().toISOString().split('T')[0];
+
+['name','age','height','goal-weight','current-weight','start-date','start-weight'].forEach(id => {
+  $(id).addEventListener('change', () => { saveProfile(); updateGoalBanner(); updateHeader(); });
+  $(id).addEventListener('input',  () => { saveProfile(); updateGoalBanner(); updateHeader(); });
+});
+
+$('rec-date').addEventListener('change', () => updateTodayPreview());
+
+function saveProfile() {
+  try {
+    localStorage.setItem('wt_profile_v5', JSON.stringify({
+      name: $('name').value.trim(),
+      age: $('age').value,
+      height: $('height').value,
+      goalWeight: $('goal-weight').value,
+      currentWeight: $('current-weight').value,
+      startDate: $('start-date').value,
+      startWeight: $('start-weight').value
+    }));
+  } catch(e) {}
+}
+
+function updateHeader() {
+  const name = $('name').value.trim();
+  $('header-sub').innerHTML = name
+    ? 'Hi, <span class="header-name">' + name + '</span> — 加油！'
+    : '設定你的資料，開始記錄';
+}
+
+function getEncourageText(diff) {
+  const day = new Date().getDate();
+  if (diff <= 0) {
+    const msgs = ['🎉 你已經達標了！太厲害了，繼續保持！','🏆 目標達成！你做到了！','✨ 從 71.5 到目標，你真的辦到了！'];
+    return msgs[day % msgs.length];
+  }
+  if (diff <= 1) {
+    const msgs = ['🔥 超近了！最後一哩路，撐住！','💥 差一點點就到了，今天繼續！','⚡ 終點就在眼前，不能放棄！'];
+    return msgs[day % msgs.length];
+  }
+  if (diff <= 3) {
+    const msgs = ['💪 快到了！你做得很好，繼續！','🎯 目標近在咫尺，加把勁！','👏 這麼努力的你，一定做得到！'];
+    return msgs[day % msgs.length];
+  }
+  if (diff <= 5) {
+    const msgs = ['👊 穩穩前進，每天一小步都算數！','🌿 慢慢來比較快，你的節奏很好！','💫 每一天的堅持都值得！'];
+    return msgs[day % msgs.length];
+  }
+  if (diff <= 10) {
+    const msgs = ['🌱 路還有一段，但你已經在路上了！','🚶 每走一步都是進步，繼續！','🌤 今天的努力是明天的成果！'];
+    return msgs[day % msgs.length];
+  }
+  const msgs = ['✨ 開始是最難的，你已經做到了！','🌟 你比自己想的更強大！','💖 相信自己，你一定行！'];
+  return msgs[day % msgs.length];
+}
+
+function getDailyQuote() {
+  const quotes = [
+    '「成功不是終點，失敗也不是終結，唯有勇氣才是永恆。」',
+    '「每一個你不想起床的早晨，都是一次改變的機會。」',
+    '「你今天的努力，是明天最好的禮物。」',
+    '「不要跟昨天的自己比，要跟昨天的自己比，今天進步一點就好。」',
+    '「堅持不是因為有希望，而是因為堅持本身就是希望。」',
+    '「改變不需要完美的開始，需要的是開始。」',
+    '「你已經走了這麼遠，沒有理由現在停下來。」',
+    '「每一滴汗水，都是在替未來的你鋪路。」',
+    '「不是因為有動力才行動，而是因為行動才有動力。」',
+    '「你的身體聽得見你的心聲，繼續告訴它你要變得更好。」',
+    '「進步不一定要快，但一定要持續。」',
+    '「今天的自律，是明天的自由。」',
+    '「比昨天的自己好一點點，就是最大的勝利。」',
+    '「疲憊的時候休息，但不要放棄。」',
+    '「你選擇健康，健康也會回報你。」',
+    '「數字會說話，但你的努力比數字更有價值。」',
+    '「每天量體重，是對自己最誠實的關心。」',
+    '「改變需要時間，但每一天都算數。」',
+    '「你不是在減重，你是在找回最好的自己。」',
+    '「相信過程，結果自然會來。」',
+    '「小小的堅持，累積成巨大的改變。」',
+    '「今天辛苦一點，未來輕鬆一點。」',
+    '「你值得擁有健康快樂的自己。」',
+    '「不要羨慕別人的結果，要學習別人的堅持。」',
+    '「每一天清晨站上體重計，都是勇敢的行為。」',
+    '「身體是你最長久的伴侶，好好愛它。」',
+    '「減重是馬拉松，不是短跑。」',
+    '「你的意志力比你想像的更強大。」',
+    '「今天的你，比昨天更接近目標了。」',
+    '「218 天的堅持，已經說明了一切。」',
+  ];
+  const day = new Date().getDay() + new Date().getDate();
+  return quotes[day % quotes.length];
+}
+
+function updateDayCounter() {
+  const startDate = $('start-date').value;
+  const counter = $('day-counter');
+  if (!startDate) { counter.style.display = 'none'; return; }
+  const start = new Date(startDate);
+  const today = new Date();
+  today.setHours(0,0,0,0);
+  start.setHours(0,0,0,0);
+  const days = Math.floor((today - start) / 86400000) + 1;
+  if (days < 1) { counter.style.display = 'none'; return; }
+  counter.style.display = '';
+  $('day-count').textContent = days;
+}
+
+function updateGoalBanner() {
+  const goal = parseFloat($('goal-weight').value);
+  const startDate = $('start-date').value;
+  const manualCurrent = parseFloat($('current-weight').value) || null;
+
+  updateDayCounter();
+
+  if (!goal) { $('goal-encourage').style.display = 'none'; return; }
+
+  // use latest record weight first, then manual input, then nothing
+  const sorted = [...records].filter(r => r.mw || r.ew).sort((a,b) => b.date.localeCompare(a.date));
+  const latest = sorted[0];
+  const currentW = (latest ? (latest.avgW ?? latest.mw ?? latest.ew) : null) || manualCurrent;
+
+  $('goal-banner').style.display = '';
+  $('g-target').textContent = goal.toFixed(1);
+
+  if (currentW) {
+    $('g-current').textContent = currentW.toFixed(1);
+    const diff = +(currentW - goal).toFixed(1);
+    const el = $('g-diff');
+    if (diff <= 0) {
+      el.textContent = '已達標！';
+      el.className = 'goal-item-val goal-diff-val achieved';
+      $('g-diff-unit').textContent = '';
+    } else {
+      el.textContent = diff.toFixed(1);
+      el.className = 'goal-item-val goal-diff-val ' + (diff <= 3 ? 'close' : 'far');
+      $('g-diff-unit').textContent = ' kg';
+    }
+    const enc = $('goal-encourage');
+    enc.style.display = '';
+    enc.textContent = getEncourageText(diff);
+    $('daily-quote').textContent = '💬 ' + getDailyQuote();
+  } else {
+    $('g-current').textContent = '—';
+    $('g-diff').textContent = '—';
+    $('goal-encourage').style.display = 'none';
+  }
+
+  if (startDate) {
+    const start = new Date(startDate);
+    const today = new Date();
+    const days = Math.floor((today - start) / 86400000);
+    let sinceText = '起始日 ' + startDate;
+    if (days > 0) sinceText += '・已第 ' + days + ' 天';
+    else if (days === 0) sinceText += '・今天開始！';
+
+    // use manually entered start weight first, fallback to first record
+    const manualStartW = parseFloat($('start-weight').value) || null;
+    let startW = manualStartW;
+    if (!startW && records.length > 0) {
+      const startRec = [...records].filter(r => r.date >= startDate).sort((a,b) => a.date.localeCompare(b.date))[0];
+      if (startRec) startW = startRec.avgW ?? startRec.mw ?? startRec.ew;
+    }
+    if (startW && currentW) {
+      const lost = +(startW - currentW).toFixed(1);
+      if (lost > 0) sinceText += '・共減了 ' + lost + ' kg 🎯';
+      else if (lost < 0) sinceText += '・增加了 ' + Math.abs(lost) + ' kg';
+      else sinceText += '・與起始持平';
+    } else if (startW) {
+      sinceText += '・起始體重 ' + startW.toFixed(1) + ' kg';
+    }
+    $('g-since').textContent = sinceText;
+    $('g-since').style.display = '';
+  } else {
+    $('g-since').style.display = 'none';
+  }
+}
+
+function getProfile() {
+  return {
+    name: $('name').value.trim(),
+    age: parseFloat($('age').value) || 0,
+    height: parseFloat($('height').value) || 0,
+    goalWeight: parseFloat($('goal-weight').value) || null
+  };
+}
+
+function getRecordForDate(date) {
+  return records.find(r => r.date === date) || null;
+}
+
+function updateTodayPreview() {
+  const date = $('rec-date').value;
+  const existing = getRecordForDate(date);
+  const preview = $('today-preview');
+  if (!existing || (!existing.mw && !existing.ew)) { preview.style.display = 'none'; return; }
+  preview.style.display = '';
+  $('today-preview-row').innerHTML = [
+    existing.mw ? `<div class="today-preview-item"><span>早晨</span>${existing.mw.toFixed(1)} kg</div>` : '',
+    existing.ew ? `<div class="today-preview-item"><span>晚上</span>${existing.ew.toFixed(1)} kg</div>` : '',
+  ].join('');
+}
+
+function savePartial(timeOfDay) {
+  const date = $('rec-date').value;
+  const p = getProfile();
+  if (!date) { alert('請選擇日期'); return; }
+  if (!p.height) { alert('請先填寫身高'); return; }
+
+  const mwInput = parseFloat($('morning-w').value) || null;
+  const ewInput = parseFloat($('evening-w').value) || null;
+  const fatInput = parseFloat($('fat-pct').value) || null;
+
+  if (timeOfDay === 'morning' && !mwInput) { alert('請填寫早晨體重'); return; }
+  if (timeOfDay === 'evening' && !ewInput) { alert('請填寫晚上體重'); return; }
+
+  let existing = getRecordForDate(date) || { date, mw: null, ew: null, fat: null };
+
+  if (timeOfDay === 'morning') {
+    existing.mw = mwInput;
+    if (fatInput) existing.fat = fatInput;
+    $('morning-w').value = '';
+  } else {
+    existing.ew = ewInput;
+    if (fatInput) existing.fat = fatInput;
+    $('evening-w').value = '';
+  }
+  $('fat-pct').value = '';
+
+  // recalculate derived values
+  const refW = existing.mw && existing.ew ? (existing.mw + existing.ew) / 2 : (existing.mw || existing.ew);
+  existing.avgW = +refW.toFixed(2);
+  existing.bmi = p.height ? +(refW / ((p.height/100)**2)).toFixed(2) : null;
+  existing.bmr = (p.height && p.age) ? +(10*refW + 6.25*p.height - 5*p.age + 5).toFixed(1) : null;
+  existing.diff = (existing.mw && existing.ew) ? +(existing.ew - existing.mw).toFixed(2) : null;
+  if (!existing.fat) {
+    existing.fat = existing.bmi && p.age ? +((1.20*existing.bmi) + (0.23*p.age) - 16.2).toFixed(1) : null;
+  }
+
+  const sortedAll = [...records.filter(r => r.date !== date)].sort((a,b) => a.date.localeCompare(b.date));
+  const prev = sortedAll.filter(r => r.date < date).pop();
+  existing.changeFromPrev = prev ? +(refW - prev.avgW).toFixed(2) : null;
+
+  const idx = records.findIndex(r => r.date === date);
+  if (idx >= 0) records[idx] = existing; else records.push(existing);
+
+  save();
+  // auto-update current weight field to latest saved value
+  $('current-weight').value = refW.toFixed(1);
+  saveProfile();
+  updateTodayPreview();
+  showMetrics(existing, p);
+  renderHistory();
+  updateGoalBanner();
+}
+
+function showMetrics(rec, p) {
+  $('metrics-area').style.display = '';
+  const bi = bmiInfo(rec.bmi);
+  const fi = fatInfo(rec.fat);
+  const idealLow = p.height ? (18.5*(p.height/100)**2).toFixed(0) : '-';
+  const idealHigh = p.height ? (23.9*(p.height/100)**2).toFixed(0) : '-';
+
+  const diffVal = rec.diff !== null
+    ? `<span class="metric-val" style="font-size:22px;">${rec.diff > 0?'+':''}${rec.diff.toFixed(1)}</span><span class="metric-unit">kg</span>`
+    : `<span class="metric-val" style="font-size:14px;font-family:'DM Sans'">尚未記錄晚上</span>`;
+
+  const chgVal = rec.changeFromPrev !== null
+    ? `<span class="metric-val ${rec.changeFromPrev > 0.05?'warn':rec.changeFromPrev < -0.05?'good':''}" style="font-size:22px;">${rec.changeFromPrev > 0?'+':''}${rec.changeFromPrev.toFixed(1)}</span><span class="metric-unit">kg</span>`
+    : `<span class="metric-val" style="font-size:14px;font-family:'DM Sans'">首筆記錄</span>`;
+
+  $('metrics-grid').innerHTML = `
+    <div class="metric">
+      <div class="metric-label">平均體重</div>
+      <div><span class="metric-val">${rec.avgW ? rec.avgW.toFixed(1) : '-'}</span><span class="metric-unit">kg</span></div>
+    </div>
+    <div class="metric">
+      <div class="metric-label">BMI</div>
+      <div><span class="metric-val ${bi.cls}">${rec.bmi ? rec.bmi.toFixed(1) : '-'}</span></div>
+      <div class="metric-sub ${bi.cls}">${bi.label}</div>
+    </div>
+    <div class="metric">
+      <div class="metric-label">體脂率</div>
+      <div><span class="metric-val ${fi.cls}">${rec.fat ? rec.fat.toFixed(1) : '-'}</span><span class="metric-unit">%</span></div>
+      <div class="metric-sub ${fi.cls}">${fi.label}</div>
+    </div>
+    <div class="metric">
+      <div class="metric-label">基礎代謝 (BMR)</div>
+      <div><span class="metric-val" style="font-size:22px;">${rec.bmr ? Math.round(rec.bmr) : '-'}</span><span class="metric-unit">大卡</span></div>
+    </div>
+    <div class="metric">
+      <div class="metric-label">早晚差異</div>
+      <div>${diffVal}</div>
+    </div>
+    <div class="metric">
+      <div class="metric-label">與前一天</div>
+      <div>${chgVal}</div>
+    </div>
+    <div class="metric" style="grid-column:span 2;">
+      <div class="metric-label">理想體重範圍</div>
+      <div><span class="metric-val" style="font-size:20px;">${idealLow} – ${idealHigh}</span><span class="metric-unit">kg</span></div>
+    </div>
+  `;
+}
+
+function renderHistory() {
+  if (!records.length) { $('history-area').style.display = 'none'; return; }
+  $('history-area').style.display = '';
+  const sorted = [...records].sort((a,b) => b.date.localeCompare(a.date));
+
+  if (currentView === 'list') {
+    $('list-view').innerHTML = `<table class="history-table">
+      <thead><tr>
+        <th>日期</th>
+        <th>早晨</th>
+        <th>晚上</th>
+        <th>BMI</th>
+        <th>變化</th>
+        <th></th>
+      </tr></thead>
+      <tbody>${sorted.map(r => {
+        const bi = bmiInfo(r.bmi);
+        const chgTag = r.changeFromPrev !== null
+          ? `<span class="tag ${r.changeFromPrev > 0.05?'up':r.changeFromPrev < -0.05?'down':'same'}">${r.changeFromPrev > 0?'+':''}${r.changeFromPrev.toFixed(1)}</span>`
+          : '<span class="tag same">首筆</span>';
+        const mwCell = r.mw ? `<span class="td-weight">${r.mw.toFixed(1)}</span>` : `<span class="td-weight empty">—</span>`;
+        const ewCell = r.ew ? `<span class="td-weight">${r.ew.toFixed(1)}</span>` : `<span class="td-weight empty">—</span>`;
+        return `<tr>
+          <td class="td-date">${r.date.slice(5).replace('-','/')}</td>
+          <td>${mwCell}</td>
+          <td>${ewCell}</td>
+          <td><span class="td-bmi ${bi.cls}">${r.bmi ? r.bmi.toFixed(1) : '—'}</span></td>
+          <td>${chgTag}</td>
+          <td><button class="del-btn" onclick="delRecord('${r.date}')">×</button></td>
+        </tr>`;
+      }).join('')}</tbody>
+    </table>`;
+  } else {
+    renderChart([...records].sort((a,b) => a.date.localeCompare(b.date)));
+  }
+}
+
+function renderChart(sorted) {
+  if (chartInst) { chartInst.destroy(); chartInst = null; }
+  chartInst = new Chart($('wChart'), {
+    type: 'line',
+    data: {
+      labels: sorted.map(r => r.date.slice(5).replace('-','/')),
+      datasets: [
+        { label: '早晨', data: sorted.map(r => r.mw), borderColor: '#3D6B4F', pointBackgroundColor: '#3D6B4F', borderWidth: 2, pointRadius: 4, tension: 0.3, spanGaps: true },
+        { label: '晚上', data: sorted.map(r => r.ew), borderColor: '#C17A3A', pointBackgroundColor: '#C17A3A', borderWidth: 2, pointRadius: 4, tension: 0.3, spanGaps: true, borderDash: [5,4] },
+      ]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: { legend: { display: true, position: 'top', labels: { font: { size: 11 }, boxWidth: 10, padding: 12 } } },
+      scales: {
+        x: { ticks: { font: { size: 10 }, maxRotation: 45, autoSkip: true } },
+        y: { ticks: { font: { size: 11 }, callback: v => v.toFixed(1) } }
+      }
+    }
+  });
+}
+
+function switchView(v) {
+  currentView = v;
+  $('tab-list').classList.toggle('active', v === 'list');
+  $('tab-chart').classList.toggle('active', v === 'chart');
+  $('list-view').style.display = v === 'list' ? '' : 'none';
+  $('chart-view').style.display = v === 'chart' ? '' : 'none';
+  if (v === 'chart') renderChart([...records].sort((a,b) => a.date.localeCompare(b.date)));
+}
+
+function delRecord(date) {
+  if (!confirm('刪除 ' + date + ' 的記錄？')) return;
+  records = records.filter(r => r.date !== date);
+  save();
+  renderHistory();
+  updateGoalBanner();
+  if (!records.length) $('metrics-area').style.display = 'none';
+}
+
+function save() {
+  try { localStorage.setItem('wt_v5', JSON.stringify(records)); } catch(e) {}
+}
+
+function bmiInfo(bmi) {
+  if (!bmi) return { label: '-', cls: '' };
+  if (bmi < 18.5) return { label: '過輕', cls: 'warn' };
+  if (bmi < 24)   return { label: '正常', cls: 'good' };
+  if (bmi < 27)   return { label: '過重', cls: 'warn' };
+  return { label: '肥胖', cls: 'danger' };
+}
+
+function fatInfo(fat) {
+  if (fat == null) return { label: '-', cls: '' };
+  if (fat < 8)  return { label: '很低', cls: 'warn' };
+  if (fat < 20) return { label: '正常', cls: 'good' };
+  if (fat < 25) return { label: '偏高', cls: 'warn' };
+  return { label: '過高', cls: 'danger' };
+}
+
+// Init
+updateHeader();
+updateGoalBanner();
+updateDayCounter();
+updateTodayPreview();
+renderHistory();
+if (records.length) {
+  const latest = [...records].sort((a,b) => b.date.localeCompare(a.date))[0];
+  showMetrics(latest, getProfile());
+}
+</script>
+</body>
+</html>
